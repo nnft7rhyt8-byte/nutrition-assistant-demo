@@ -1,30 +1,33 @@
-# NutriPilot v0.6.0
+# NutriPilot v0.7.0
 
-React/Vite-Konzeptprototyp für den klinischen Ernährungsworkflow.
+React/Vite-Konzeptprototyp für den realen Konsil-Workflow einer Ernährungsfachkraft.
 
-## Neu in v0.6
+## Neu in v0.7
 
-- NRS-2002 vollständig zweistufig:
-  - Vorscreening mit vier Fragen
-  - Hauptscreening mit Ernährungsstatus, Krankheitsschwere und Alterszuschlag
-  - transparenter Gesamtscore
+- Konsil-Cockpit als Startseite
+- sechs realistische Demo-Konsile
+- fachliche Priorisierung und Statusdarstellung
+- Konsilübernahme mit vorhandenen Klinikdaten
+- klare Trennung: bereits vorhanden / ernährungsfachlich noch erforderlich
 - Assessment als zentrale Datendrehscheibe
-- GLIM ohne erneute Eingaben
-- automatische GLIM-Auswertung aus Assessmentdaten
-- transparente Quellen der einzelnen Kriterien
-- Fortschrittsanzeige und offene Datenerhebungen
-- Maßnahmen und Entlassung übernehmen Assessmentdaten
+- modulare Fortschrittsanzeige
+- automatische GLIM-Auswertung ohne Doppeleingaben
+- transparente Begründung der Einstufung
+- Maßnahmenvorschläge aus Assessmentdaten
+- Monitoring mit Legende, Achsen, Therapieereignis und Interpretation
+- automatisch vorbereitete Entlassungsdokumentation
 
-## Deployment
+## Upload auf GitHub
 
-GitHub Pages wird über `.github/workflows/deploy.yml` gebaut.
+1. ZIP entpacken.
+2. Den Inhalt des Ordners in `nutrition-assistant-demo` hochladen.
+3. `.github/workflows/deploy.yml` mit hochladen.
+4. Unter `Settings → Pages` die Quelle `GitHub Actions` verwenden.
+5. Workflow abwarten.
 
-1. Inhalt dieses Ordners in das Repository hochladen.
-2. `Settings → Pages → Source: GitHub Actions`.
-3. Workflow abwarten.
-4. Demo öffnen:
-   `https://nnft7rhyt8-byte.github.io/nutrition-assistant-demo/`
+Demo:
+`https://nnft7rhyt8-byte.github.io/nutrition-assistant-demo/`
 
-## Klinischer Status
+## Status
 
-Konzeptprototyp, noch nicht klinisch validiert, nicht für echte Patientendaten oder autonome Entscheidungen.
+Noch nicht klinisch validierter Konzeptprototyp. Nicht für echte Patientendaten, Diagnosen oder autonome Therapieentscheidungen.
