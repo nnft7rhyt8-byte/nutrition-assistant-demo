@@ -13,13 +13,18 @@ import {
   ClipboardList,
   Clock3,
   Download,
+  ExternalLink,
   FileText,
   Filter,
   HeartPulse,
   Home,
   Hospital,
+  Info,
   LayoutGrid,
   ListChecks,
+  Calculator,
+  Database,
+  GitBranch,
   MoreHorizontal,
   Plus,
   RefreshCcw,
@@ -36,8 +41,76 @@ import {
 } from "lucide-react";
 import "./styles.css";
 
-const STORAGE_KEY = "nutripilot-v1-patients";
-const APP_VERSION = "1.0 MVP";
+const STORAGE_KEY = "nutripilot-v1.2-patients";
+const LEGACY_STORAGE_KEYS = ["nutripilot-v1.1-patients", "nutripilot-v1-patients"];
+const APP_VERSION = "v1.2 Explainable Therapy";
+
+
+const GUIDELINES = {
+  dgemGeriatrics2025: {
+    id: "DGEM-GER-2025",
+    title: "DGEM S3-Leitlinie Klinische Ernährung und Hydrierung im Alter",
+    version: "2025",
+    recommendation: "Empfehlungen 1–2 sowie 28 und 31",
+    url: "https://www.dgem.de/sites/default/files/PDFs/Leitlinien/S3-Leitlinien/0701_AktErn-LL-2025-02-0119_Online-PDF_watermarked.pdf",
+    note: "Orientierung: 30 kcal/kg/Tag, bei kranken älteren Personen häufig 27–30 kcal/kg/Tag. Protein mindestens 1,0 g/kg/Tag, bei Krankheit häufig 1,2–1,5 g/kg/Tag; immer individuell anpassen.",
+    scope: "Ältere und geriatrische Personen; orale Ernährung und Trinknahrung.",
+  },
+  espenGeriatrics2022: {
+    id: "ESPEN-GER-2022",
+    title: "ESPEN practical guideline: Clinical nutrition and hydration in geriatrics",
+    version: "2022",
+    recommendation: "Recommendations 1–2",
+    url: "https://www.espen.org/files/ESPEN-Guidelines/ESPEN_practical_guideline_Clinical_nutrition_and_hydration_in_geriatrics.pdf",
+    note: "30 kcal/kg/Tag als allgemeiner Richtwert; mindestens 1,0 g Protein/kg/Tag. 1,2–1,5 g/kg/Tag werden bei akuter oder chronischer Krankheit häufig vorgeschlagen.",
+    scope: "Ältere Personen in allen Versorgungssettings.",
+  },
+  espenCancer2021: {
+    id: "ESPEN-ONK-2021",
+    title: "ESPEN practical guideline: Clinical Nutrition in cancer",
+    version: "2021",
+    recommendation: "Recommendations B2-1 und B2-2",
+    url: "https://www.espen.org/files/ESPEN-Guidelines/ESPEN-practical-guideline-clinical-nutrition-in-cancer.pdf",
+    note: "Wenn nicht individuell gemessen: 25–30 kcal/kg/Tag; Protein über 1,0 g/kg/Tag und wenn möglich bis 1,5 g/kg/Tag.",
+    scope: "Erwachsene Patientinnen und Patienten mit Tumorerkrankung.",
+  },
+  espenPolymorbid2024: {
+    id: "ESPEN-POLY-2024",
+    title: "ESPEN practical guideline: Nutritional support for polymorbid medical inpatients",
+    version: "2024",
+    recommendation: "Practical guideline",
+    url: "https://www.espen.org/files/ESPEN-Guidelines/ESPEN-practical-guideline-Nutritional-support-for-polymorbid-medical-inpatients.pdf",
+    note: "Unterstützt die individualisierte Ernährungstherapie bei polymorbiden internistischen Krankenhauspatienten und betont Verlaufskontrolle sowie Anpassung.",
+    scope: "Polymorbide erwachsene internistische Krankenhauspatienten.",
+  },
+  niceNutrition2017: {
+    id: "NICE-CG32-2017",
+    title: "NICE CG32 – Nutrition support for adults",
+    version: "zuletzt aktualisiert 2017",
+    recommendation: "1.4.2, 1.4.6–1.4.8 und 1.6.6",
+    url: "https://www.nice.org.uk/guidance/cg32/chapter/Recommendations",
+    note: "Allgemeine Orientierung 25–35 kcal/kg/Tag, 0,8–1,5 g Protein/kg/Tag und 30–35 ml Flüssigkeit/kg/Tag; enthält explizite Kriterien für ein hohes Refeeding-Risiko.",
+    scope: "Erwachsene mit Mangelernährung oder Risiko für Mangelernährung.",
+  },
+};
+
+const LOCAL_RULES = {
+  safetyGate: {
+    id: "NP-SAFETY-01",
+    title: "NutriPilot Sicherheitsgate",
+    note: "Quantitative Übernahme wird blockiert, wenn Gewichtsbasis, Refeeding-Sicherheit oder sichere orale Zufuhr nicht ausreichend geklärt sind.",
+  },
+  oralFirst: {
+    id: "NP-ORAL-01",
+    title: "Orale Ernährung zuerst, sofern sicher und realistisch",
+    note: "Kostform, Anreicherung, Zwischenmahlzeiten, Unterstützung und Präferenzen werden vor einer Eskalation strukturiert geprüft.",
+  },
+  deficitEscalation: {
+    id: "NP-STEP-01",
+    title: "Stufenlogik bei Bedarfsunterdeckung",
+    note: "Bei voraussichtlich unzureichender oraler Zielerreichung werden ergänzende Trinknahrung und anschließend eine interprofessionelle Eskalationsprüfung vorgeschlagen.",
+  },
+};
 
 const AMPUTATION_SEGMENTS = [
   { label: "Keine Amputation", percent: 0 },
@@ -397,6 +470,17 @@ function makePatient(input) {
       inflammation: "unknown",
       edema: false,
       ascites: false,
+      renalStatus: "unknown",
+      liverStatus: "unknown",
+      cardiacStatus: "unknown",
+      fluidRestriction: false,
+      allergies: "",
+      potassiumStatus: "unknown",
+      phosphateStatus: "unknown",
+      magnesiumStatus: "unknown",
+      alcoholRisk: false,
+      highRiskMedication: false,
+      swallowPlanConfirmed: false,
       amputation: { present: false, label: "Keine Amputation", percent: 0, bilateral: false },
       notes: "",
     },
@@ -407,6 +491,15 @@ function makePatient(input) {
       fluidGoal: "",
       measures: "",
       nextReview: "",
+      monitoringPlan: "",
+      weightBasisConfirmed: false,
+      recommendationStatus: "draft",
+      recommendationReason: "",
+      recommendationAlternative: "standard",
+      recommendationGeneratedAt: "",
+      recommendationAcceptedAt: "",
+      confirmedAt: "",
+      confirmedBy: "",
       confirmed: false,
     },
     discharge: { recommendations: "", completed: false, completedAt: "" },
@@ -432,6 +525,12 @@ function makePatient(input) {
     therapy: { ...base.therapy, ...(input.therapy || {}) },
     discharge: { ...base.discharge, ...(input.discharge || {}) },
   };
+
+  if (merged.therapy.confirmed && merged.therapy.recommendationStatus === "draft") {
+    merged.therapy.recommendationStatus = "confirmed";
+    merged.therapy.confirmedAt = merged.therapy.confirmedAt || merged.updatedAt;
+    merged.therapy.confirmedBy = merged.therapy.confirmedBy || "Ernährungsfachkraft";
+  }
 
   if (!input.timeline) {
     merged.timeline = [
@@ -580,13 +679,432 @@ function answerLabel(value) {
   return "offen";
 }
 
+function roundTo(value, step = 5) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value / step) * step;
+}
+
+function uniqueGuidelines(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    if (!item || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
+function therapyRecommendation(patient, alternative = patient.therapy?.recommendationAlternative || "standard") {
+  const a = patient.assessment || {};
+  const metrics = assessmentMetrics(patient);
+  const age = Number(ageFromBirthDate(patient.birthDate)) || 0;
+  const weightBasis = a.amputation?.present ? metrics.correctedWeight : metrics.observedWeight;
+  const bmi = a.amputation?.present ? metrics.correctedBmi : metrics.observedBmi;
+  const intakePercent = number(a.intakePercent);
+  const intakeDays = number(a.intakeDays);
+  const scenario = String(patient.scenario || "").toLowerCase();
+  const station = String(patient.station || "").toLowerCase();
+  const swallowing = String(a.swallowing || "").toLowerCase();
+  const labStates = [a.potassiumStatus, a.phosphateStatus, a.magnesiumStatus];
+  const unknownLabs = labStates.some((value) => !value || value === "unknown");
+  const lowLabs = labStates.some((value) => value === "low");
+
+  const majorRefeedingCriteria = [
+    { label: "BMI < 16 kg/m²", met: bmi > 0 && bmi < 16, actual: bmi > 0 ? bmi.toFixed(1) : "offen" },
+    { label: "Gewichtsverlust > 15 % in 3–6 Monaten", met: metrics.weightLoss > 15, actual: `${metrics.weightLoss.toFixed(1)} %` },
+    { label: "Kaum/keine Aufnahme > 10 Tage", met: intakeDays > 10 && intakePercent <= 10, actual: `${intakePercent || "offen"} % über ${intakeDays || "–"} Tage`, proxy: true },
+    { label: "Kalium, Phosphat oder Magnesium erniedrigt", met: lowLabs, actual: lowLabs ? "mindestens ein Wert erniedrigt" : unknownLabs ? "nicht vollständig dokumentiert" : "kein erniedrigter Status dokumentiert" },
+  ];
+  const minorRefeedingCriteria = [
+    { label: "BMI < 18,5 kg/m²", met: bmi > 0 && bmi < 18.5, actual: bmi > 0 ? bmi.toFixed(1) : "offen" },
+    { label: "Gewichtsverlust > 10 % in 3–6 Monaten", met: metrics.weightLoss > 10, actual: `${metrics.weightLoss.toFixed(1)} %` },
+    { label: "Sehr geringe Aufnahme > 5 Tage", met: intakeDays > 5 && intakePercent <= 25, actual: `${intakePercent || "offen"} % über ${intakeDays || "–"} Tage`, proxy: true },
+    { label: "Alkoholanamnese oder relevante Medikation", met: Boolean(a.alcoholRisk || a.highRiskMedication), actual: a.alcoholRisk || a.highRiskMedication ? "ja" : "nein" },
+  ];
+  const majorRefeedingCount = majorRefeedingCriteria.filter((item) => item.met).length;
+  const minorRefeedingCount = minorRefeedingCriteria.filter((item) => item.met).length;
+  const refeedingRisk = scenario.includes("refeeding") || majorRefeedingCount >= 1 || minorRefeedingCount >= 2;
+
+  const swallowUnclear = swallowing.includes("nicht sicher") || swallowing.includes("nicht erhoben") || swallowing.trim() === "";
+  const dysphagia = swallowing.includes("dysphag") || swallowing.includes("kostform") || swallowing.includes("schluckstörung") || swallowing.includes("püriert");
+  const swallowPlanReady = !dysphagia || swallowing.includes("kostform angepasst") || Boolean(a.swallowPlanConfirmed);
+
+  const safetyChecks = [];
+  safetyChecks.push({
+    key: "weight",
+    status: weightBasis > 0 ? "ok" : "block",
+    title: "Verwendbare Gewichtsbasis",
+    detail: weightBasis > 0 ? `${weightBasis.toFixed(1)} kg (${a.amputation?.present ? "segmentkorrigiert" : "beobachtet"})` : "Gewicht fehlt; quantitative Zielwerte sind nicht berechenbar.",
+    source: "Assessment · Anthropometrie",
+    action: weightBasis > 0 ? "keine" : "Gewicht beziehungsweise geeignete Ersatzgröße erfassen",
+  });
+  if (a.amputation?.present) {
+    safetyChecks.push({
+      key: "amputation",
+      status: patient.therapy?.weightBasisConfirmed ? "ok" : "block",
+      title: "Amputationskorrektur bestätigen",
+      detail: patient.therapy?.weightBasisConfirmed
+        ? `Korrigierte Gewichtsbasis ${metrics.correctedWeight.toFixed(1)} kg wurde fachlich bestätigt.`
+        : `Segment ${a.amputation.label}, ${metrics.segmentPercent.toFixed(1)} %. Die Verwendung des korrigierten Gewichts muss bestätigt werden.`,
+      source: "NutriPilot Berechnung · Segmentkorrektur",
+      action: patient.therapy?.weightBasisConfirmed ? "keine" : "Rechenweg und Segment fachlich bestätigen",
+    });
+  }
+  safetyChecks.push({
+    key: "refeeding",
+    status: refeedingRisk ? (unknownLabs || lowLabs ? "block" : "warning") : "ok",
+    title: "Refeeding-Sicherheit",
+    detail: refeedingRisk
+      ? unknownLabs
+        ? `Erhöhtes Risiko (${majorRefeedingCount} Haupt- / ${minorRefeedingCount} Nebenkriterien); Kalium, Phosphat und Magnesium sind nicht vollständig dokumentiert.`
+        : lowLabs
+          ? `Erhöhtes Risiko (${majorRefeedingCount} Haupt- / ${minorRefeedingCount} Nebenkriterien) und mindestens ein auffälliger Elektrolytstatus.`
+          : `Erhöhtes Risiko (${majorRefeedingCount} Haupt- / ${minorRefeedingCount} Nebenkriterien); Elektrolytstatus dokumentiert, vorsichtiger Aufbau und enges Monitoring erforderlich.`
+      : "Kein hohes Risiko aus den aktuell dokumentierten Kriterien abgeleitet.",
+    source: "NICE CG32 · 1.4.6–1.4.8",
+    action: refeedingRisk ? "interprofessionelle Refeeding-Steuerung und lokalen Standard anwenden" : "keine",
+  });
+  safetyChecks.push({
+    key: "swallow",
+    status: swallowUnclear || !swallowPlanReady ? "block" : dysphagia ? "warning" : "ok",
+    title: "Sichere orale Zufuhr",
+    detail: swallowUnclear
+      ? "Schlucksicherheit ist nicht ausreichend geklärt."
+      : !swallowPlanReady
+        ? "Dysphagie ist dokumentiert, aber Kostform beziehungsweise Schluckplan ist noch nicht bestätigt."
+        : dysphagia
+          ? "Kostform/Schluckplan ist berücksichtigt und muss regelmäßig reevaluiert werden."
+          : "Keine dokumentierte Einschränkung der Schlucksicherheit.",
+    source: "Assessment · Schluckstatus / NICE CG32 · 1.6.6",
+    action: swallowUnclear || !swallowPlanReady ? "Schlucksicherheit und Kostform klären" : "Verträglichkeit beobachten",
+  });
+  if (a.edema || a.ascites) {
+    safetyChecks.push({
+      key: "fluidweight",
+      status: "warning",
+      title: "Gewicht durch Flüssigkeit beeinflusst",
+      detail: "Ödeme oder Aszites können Gewicht und Verlauf verfälschen; Trockengewicht beziehungsweise alternative Verlaufsparameter prüfen.",
+      source: "Assessment · klinischer Volumenstatus",
+      action: "Gewicht nicht isoliert als Verlaufskriterium verwenden",
+    });
+  }
+  if (a.fluidRestriction || [a.renalStatus, a.cardiacStatus].includes("impaired")) {
+    safetyChecks.push({
+      key: "fluid",
+      status: "warning",
+      title: "Flüssigkeitsziel individualisieren",
+      detail: "Eine Restriktion oder Organfunktionsstörung ist dokumentiert; kein automatisches Flüssigkeitsziel übernehmen.",
+      source: "Assessment · Organ-/Volumenstatus",
+      action: "Flüssigkeitsziel interprofessionell festlegen",
+    });
+  }
+  if (a.renalStatus === "unknown" || a.liverStatus === "unknown") {
+    safetyChecks.push({
+      key: "organs",
+      status: "warning",
+      title: "Organfunktion noch nicht vollständig eingeordnet",
+      detail: "Nieren- und/oder Leberfunktion fehlen als bestätigte Information. Protein- und Flüssigkeitsziele müssen klinisch gegengeprüft werden.",
+      source: "Assessment · Therapiesicherheit",
+      action: "Organfunktion prüfen oder bewusste fachliche Abweichung dokumentieren",
+    });
+  }
+
+  const sources = [];
+  let energyPerKg = [25, 35];
+  let proteinPerKg = [0.8, 1.5];
+  let ruleLabel = "Allgemeiner erwachsener Krankenhausfall";
+  let ruleReason = "Kein spezifischer geriatrischer oder onkologischer Kontext wurde sicher erkannt; daher wird nur der breite allgemeine NICE-Korridor gezeigt.";
+  let targetMode = "numeric";
+
+  const isOncology = scenario.includes("onkologie") || station.includes("onkologie") || scenario.includes("tumor") || scenario.includes("cancer");
+  const isGeriatric = age >= 65 || scenario.includes("geriatr") || scenario.includes("dysphag");
+
+  if (isOncology) {
+    energyPerKg = [25, 30];
+    proteinPerKg = [1.0, 1.5];
+    ruleLabel = "Onkologischer Kontext";
+    ruleReason = "Tumorerkrankung beziehungsweise onkologischer Versorgungskontext ist dokumentiert.";
+    sources.push(GUIDELINES.espenCancer2021);
+  } else if (isGeriatric) {
+    energyPerKg = [27, 30];
+    const higherProteinNeed = a.inflammation === "yes" || a.muscleReduced === "yes" || metrics.weightLoss >= 5;
+    proteinPerKg = higherProteinNeed ? [1.2, 1.5] : [1.0, 1.2];
+    ruleLabel = "Älterer beziehungsweise geriatrischer Patient";
+    ruleReason = higherProteinNeed
+      ? "Alter plus Krankheitslast, reduzierte Muskelmasse oder relevanter Gewichtsverlust sprechen für den höheren Protein-Korridor."
+      : "Alter beziehungsweise geriatrischer Kontext ist dokumentiert; derzeit kein bestätigtes Merkmal für den höheren Protein-Korridor.";
+    sources.push(GUIDELINES.dgemGeriatrics2025, GUIDELINES.espenGeriatrics2022);
+  } else {
+    sources.push(GUIDELINES.niceNutrition2017, GUIDELINES.espenPolymorbid2024);
+  }
+
+  if (refeedingRisk || dysphagia) sources.push(GUIDELINES.niceNutrition2017);
+  if (scenario.includes("adipositas") || bmi >= 30) {
+    targetMode = "individual";
+    ruleLabel = "Adipositas mit möglicher Mangelernährung";
+    ruleReason = "Ein hoher BMI schließt Mangelernährung nicht aus; eine geeignete Berechnungsbasis muss individuell festgelegt werden.";
+    safetyChecks.push({
+      key: "obesity",
+      status: "warning",
+      title: "Keine scheinpräzise kg-basierte Automatik",
+      detail: "Bei Adipositas und gleichzeitigem Mangelernährungsrisiko muss die geeignete Berechnungsbasis individuell festgelegt werden.",
+      source: "NutriPilot Anwendungsgrenze",
+      action: "Gewichtsbasis und Zielsetzung individuell dokumentieren",
+    });
+  }
+
+  const blocked = safetyChecks.some((item) => item.status === "block");
+  const warnings = safetyChecks.filter((item) => item.status === "warning");
+  const fluidAutoAllowed = !a.fluidRestriction && a.renalStatus !== "impaired" && a.cardiacStatus !== "impaired";
+
+  const targetValues = targetMode === "numeric" && weightBasis > 0 ? {
+    energyLow: roundTo(weightBasis * energyPerKg[0], 25),
+    energyHigh: roundTo(weightBasis * energyPerKg[1], 25),
+    proteinLow: roundTo(weightBasis * proteinPerKg[0], 1),
+    proteinHigh: roundTo(weightBasis * proteinPerKg[1], 1),
+    fluidLow: fluidAutoAllowed ? roundTo(weightBasis * 30, 50) : null,
+    fluidHigh: fluidAutoAllowed ? roundTo(weightBasis * 35, 50) : null,
+  } : {
+    energyLow: null,
+    energyHigh: null,
+    proteinLow: null,
+    proteinHigh: null,
+    fluidLow: null,
+    fluidHigh: null,
+  };
+
+  const selected = {
+    energy: targetValues.energyLow == null ? null : alternative === "vorsichtig" ? targetValues.energyLow : roundTo((targetValues.energyLow + targetValues.energyHigh) / 2, 25),
+    protein: targetValues.proteinLow == null ? null : alternative === "protein" ? targetValues.proteinHigh : alternative === "vorsichtig" ? targetValues.proteinLow : roundTo((targetValues.proteinLow + targetValues.proteinHigh) / 2, 1),
+    fluid: targetValues.fluidLow == null ? null : alternative === "vorsichtig" ? targetValues.fluidLow : roundTo((targetValues.fluidLow + targetValues.fluidHigh) / 2, 50),
+  };
+
+  const safetyMeasures = [];
+  if (refeedingRisk) safetyMeasures.push("Refeeding-Risiko vor einer Steigerung interprofessionell absichern; Kalium, Phosphat und Magnesium dokumentieren und nach lokalem Standard überwachen.");
+  if (swallowUnclear) safetyMeasures.push("Vor oraler Therapie Schlucksicherheit fachlich klären.");
+  if (dysphagia && swallowPlanReady) safetyMeasures.push("Bestätigte Kostform und Flüssigkeitskonsistenz konsequent umsetzen; regelmäßige Re-Evaluation mit Logopädie/Pflege.");
+  if (a.amputation?.present) safetyMeasures.push("Segmentkorrektur, Rechenweg und verwendete Gewichtsbasis in der Dokumentation sichtbar halten.");
+  if (!safetyMeasures.length) safetyMeasures.push("Aktuelle Datenbasis und Verträglichkeit vor Aktivierung des Plans prüfen.");
+
+  const oralMeasures = [];
+  if (isGeriatric) oralMeasures.push("Orale Ernährung priorisieren: energie- und proteinangereicherte Mahlzeiten, kleine häufige Portionen und bedarfsgerechte Essunterstützung.");
+  else oralMeasures.push("Kostform an Bedarf, Symptome, Präferenzen und tatsächliche Aufnahme anpassen; Energie- und Proteindichte gezielt erhöhen.");
+  if (isOncology) oralMeasures.push("Ernährungsrelevante Symptome wie Übelkeit, frühe Sättigung, Geschmacksveränderungen oder Fatigue erfassen und Maßnahmen daran ausrichten.");
+  if (dysphagia) oralMeasures.push("Nur die bestätigte dysphagiegerechte Kostform und Flüssigkeitskonsistenz verwenden.");
+  if (intakePercent > 0 && intakePercent < 75) oralMeasures.push(`Die dokumentierte Aufnahme von ${intakePercent} % liegt unter dem vereinbarten Mindestziel; Anreicherung und Zwischenmahlzeiten priorisieren.`);
+
+  const onsMeasures = [];
+  if (intakePercent > 0 && intakePercent < 75) onsMeasures.push("Medizinische Trinknahrung ergänzend prüfen, wenn optimierte Mahlzeiten die Ernährungsziele voraussichtlich nicht erreichen und die orale Zufuhr sicher ist.");
+  else onsMeasures.push("Trinknahrung nur bei absehbarer Bedarfsunterdeckung oder unzureichender Zielerreichung ergänzen.");
+  if (isGeriatric && intakePercent > 0 && intakePercent < 75) onsMeasures.push("Menge individuell am geschätzten Energie- und Proteindefizit ausrichten; Akzeptanz und tatsächlich konsumierte Menge dokumentieren.");
+
+  const escalationMeasures = [];
+  if (intakePercent > 0 && intakePercent < 50) escalationMeasures.push("Wenn die orale Zielerreichung trotz Optimierung nicht realistisch ist, enterale Ernährung im Ernährungsteam und ärztlich prüfen.");
+  else escalationMeasures.push("Bei ausbleibender Zielerreichung innerhalb des festgelegten Kontrollfensters Eskalationsbedarf neu bewerten.");
+  escalationMeasures.push("Parenterale Ernährung, Elektrolytdosierungen und komplexe Intensivtherapie sind nicht Bestandteil der automatischen v1.2-Empfehlung.");
+
+  const reviewDays = refeedingRisk || intakePercent < 50 ? 1 : 2;
+  const monitoring = [
+    { parameter: "Tatsächliche Energie- und Proteinaufnahme", interval: "täglich", trigger: "unter 75 % des vereinbarten Ziels" },
+    { parameter: "Verträglichkeit / gastrointestinale Symptome", interval: "täglich", trigger: "neue oder zunehmende Beschwerden" },
+    { parameter: "Gewicht beziehungsweise geeigneter Verlaufsparameter", interval: a.edema || a.ascites ? "individuell" : "2× pro Woche", trigger: "unerwartete Veränderung oder Flüssigkeitsverschiebung" },
+    { parameter: "Therapie- und Zielerreichung", interval: `in ${reviewDays} Tag${reviewDays === 1 ? "" : "en"}`, trigger: "Ziel nicht erreichbar oder klinische Verschlechterung" },
+  ];
+  if (refeedingRisk) monitoring.unshift({ parameter: "Kalium, Phosphat, Magnesium und klinischer Status", interval: "engmaschig nach lokalem Refeeding-Standard", trigger: "Abfall, Symptome oder Volumenüberlastung" });
+  if (dysphagia) monitoring.push({ parameter: "Schlucksicherheit und Akzeptanz der Kostform", interval: "regelmäßig bis stabil", trigger: "Husten, Verschlucken, reduzierte Aufnahme oder Atemwegsinfekt" });
+
+  const evidence = [
+    { domain: "Anthropometrie", label: "Gewichtsbasis", value: weightBasis > 0 ? `${weightBasis.toFixed(1)} kg${a.amputation?.present ? " korrigiert" : " beobachtet"}` : "offen", state: weightBasis > 0 ? "confirmed" : "open", source: a.amputation?.present ? "Assessment + Berechnung" : "Assessment", meaning: "Basis der kg-bezogenen Zielkorridore" },
+    { domain: "Anthropometrie", label: "BMI", value: bmi > 0 ? `${bmi.toFixed(1)} kg/m²` : "offen", state: bmi > 0 ? (a.edema || a.ascites ? "warning" : "confirmed") : "open", source: "NutriPilot Berechnung", meaning: a.edema || a.ascites ? "durch Volumenstatus eingeschränkt interpretierbar" : "Teil der Risiko- und Plausibilitätsprüfung" },
+    { domain: "Verlauf", label: "Gewichtsverlust", value: metrics.weightLoss > 0 ? `${metrics.weightLoss.toFixed(1)} %` : "nicht berechenbar", state: metrics.weightLoss > 0 ? "confirmed" : "open", source: "Assessment · aktuelles/3-Monats-Gewicht", meaning: metrics.weightLoss >= 5 ? "klinisch relevanter Verlust als Therapiesignal" : "derzeit kein deutlicher Verlust aus den Daten" },
+    { domain: "Aufnahme", label: "Nahrungsaufnahme", value: intakePercent > 0 ? `${intakePercent} % über ${intakeDays || "–"} Tage` : "offen", state: intakePercent > 0 ? (intakePercent < 50 ? "warning" : "confirmed") : "open", source: "Assessment · Aufnahme", meaning: intakePercent > 0 && intakePercent < 75 ? "Bedarfsunterdeckung wahrscheinlich" : "Aufnahme nicht deutlich reduziert dokumentiert" },
+    { domain: "Körperzusammensetzung", label: "Muskelstatus", value: answerLabel(a.muscleReduced), state: a.muscleReduced === "unknown" ? "open" : a.muscleReduced === "yes" ? "warning" : "confirmed", source: "Assessment · Muskelstatus", meaning: a.muscleReduced === "yes" ? "höheren Proteinbedarf fachlich prüfen" : "beeinflusst Protein-Korridor" },
+    { domain: "Krankheitslast", label: "Entzündung", value: answerLabel(a.inflammation), state: a.inflammation === "unknown" ? "open" : a.inflammation === "yes" ? "warning" : "confirmed", source: "Assessment · klinischer Kontext", meaning: a.inflammation === "yes" ? "erhöhter Bedarf beziehungsweise Katabolie möglich" : "beeinflusst Protein-Korridor" },
+    { domain: "Sicherheit", label: "Schluckstatus", value: a.swallowing || "offen", state: swallowUnclear || !swallowPlanReady ? "open" : dysphagia ? "warning" : "confirmed", source: "Assessment · Schlucken/Kostform", meaning: swallowUnclear || !swallowPlanReady ? "orale Empfehlung noch nicht sicher freigebbar" : "orale Zufuhr kann unter dokumentierten Bedingungen geplant werden" },
+    { domain: "Sicherheit", label: "Refeeding", value: refeedingRisk ? `${majorRefeedingCount} Haupt- / ${minorRefeedingCount} Nebenkriterien` : "kein hohes Risiko abgeleitet", state: refeedingRisk ? (unknownLabs || lowLabs ? "open" : "warning") : "confirmed", source: "NICE CG32 + Assessment", meaning: refeedingRisk ? "Aufbau und Monitoring müssen gesondert gesteuert werden" : "kein Refeeding-Sicherheitsmodus aus den aktuellen Daten" },
+    { domain: "Sicherheit", label: "Organ-/Volumenstatus", value: `${a.renalStatus || "unknown"} / ${a.liverStatus || "unknown"} / ${a.cardiacStatus || "unknown"}`, state: [a.renalStatus, a.liverStatus, a.cardiacStatus].includes("unknown") ? "open" : [a.renalStatus, a.liverStatus, a.cardiacStatus].includes("impaired") ? "warning" : "confirmed", source: "Assessment · Therapiesicherheit", meaning: "begrenzt Protein- und Flüssigkeitsautomatik" },
+  ];
+
+  const verifiedEvidence = evidence.filter((item) => item.state === "confirmed").length;
+  const openEvidence = evidence.filter((item) => item.state === "open").length;
+  const decisionCompleteness = Math.round((verifiedEvidence / evidence.length) * 100);
+  const dataQuality = blocked ? "nicht freigegeben" : openEvidence >= 3 ? "eingeschränkt" : warnings.length >= 2 ? "mit Vorbehalten" : "gut nachvollziehbar";
+
+  const calculations = [
+    {
+      label: "Gewichtsbasis",
+      formula: a.amputation?.present
+        ? `${metrics.observedWeight.toFixed(1)} kg ÷ (1 − ${(metrics.segmentPercent / 100).toFixed(3)})`
+        : `${metrics.observedWeight.toFixed(1)} kg beobachtetes Gewicht`,
+      result: weightBasis > 0 ? `${weightBasis.toFixed(1)} kg` : "nicht berechenbar",
+      rationale: a.amputation?.present ? "Segmentkorrektur; vor Verwendung fachlich zu bestätigen" : "keine Segmentkorrektur dokumentiert",
+      source: a.amputation?.present ? "NutriPilot Segmentregel · noch klinisch zu validieren" : "Assessment",
+    },
+    {
+      label: "BMI",
+      formula: `${weightBasis > 0 ? weightBasis.toFixed(1) : "?"} kg ÷ (${number(a.height) / 100 || "?"} m)²`,
+      result: bmi > 0 ? `${bmi.toFixed(1)} kg/m²` : "nicht berechenbar",
+      rationale: a.edema || a.ascites ? "nur eingeschränkt interpretierbar wegen Flüssigkeitseinlagerung" : "Plausibilitäts- und Risikoparameter",
+      source: "Standardformel",
+    },
+    {
+      label: "Gewichtsverlust",
+      formula: number(a.weight3m) > 0 ? `(${number(a.weight3m).toFixed(1)} − ${metrics.observedWeight.toFixed(1)}) ÷ ${number(a.weight3m).toFixed(1)} × 100` : "3-Monats-Gewicht fehlt",
+      result: metrics.weightLoss > 0 ? `${metrics.weightLoss.toFixed(1)} %` : "nicht berechenbar",
+      rationale: "Verlaufssignal; beobachtetes Gewicht wird verwendet",
+      source: "Assessment",
+    },
+    {
+      label: "Energie-Korridor",
+      formula: targetMode === "numeric" && weightBasis > 0 ? `${weightBasis.toFixed(1)} kg × ${energyPerKg[0]}–${energyPerKg[1]} kcal/kg` : "individuelle Berechnungsbasis erforderlich",
+      result: targetValues.energyLow == null ? "nicht automatisch berechnet" : `${targetValues.energyLow}–${targetValues.energyHigh} kcal/Tag`,
+      rationale: ruleLabel,
+      source: uniqueGuidelines(sources).map((item) => item.id).join(", ") || "individuelle Festlegung",
+    },
+    {
+      label: "Protein-Korridor",
+      formula: targetMode === "numeric" && weightBasis > 0 ? `${weightBasis.toFixed(1)} kg × ${proteinPerKg[0].toFixed(1)}–${proteinPerKg[1].toFixed(1)} g/kg` : "individuelle Berechnungsbasis erforderlich",
+      result: targetValues.proteinLow == null ? "nicht automatisch berechnet" : `${targetValues.proteinLow}–${targetValues.proteinHigh} g/Tag`,
+      rationale: ruleReason,
+      source: uniqueGuidelines(sources).map((item) => item.id).join(", ") || "individuelle Festlegung",
+    },
+    {
+      label: "Flüssigkeits-Korridor",
+      formula: fluidAutoAllowed && weightBasis > 0 ? `${weightBasis.toFixed(1)} kg × 30–35 ml/kg` : "Automatik wegen Restriktion/Organstatus deaktiviert",
+      result: targetValues.fluidLow == null ? "individuell festlegen" : `${targetValues.fluidLow}–${targetValues.fluidHigh} ml/Tag`,
+      rationale: fluidAutoAllowed ? "allgemeine Orientierung, klinischen Volumenstatus prüfen" : "Sicherheitsbedingte Individualisierung",
+      source: "NICE-CG32-2017",
+    },
+  ];
+
+  const findings = [
+    metrics.weightLoss >= 5 ? `${metrics.weightLoss.toFixed(1)} % Gewichtsverlust` : null,
+    intakePercent > 0 ? `${intakePercent} % dokumentierte Aufnahme` : null,
+    a.muscleReduced === "yes" ? "reduzierte Muskelmasse" : null,
+    a.inflammation === "yes" ? "Entzündung/Krankheitslast" : null,
+    dysphagia ? "Schluckstörung beziehungsweise angepasste Kostform" : null,
+  ].filter(Boolean);
+
+  const interventionConclusion = blocked
+    ? "Zunächst Sicherheitslücken schließen; noch keine übernehmbare quantitative Empfehlung."
+    : intakePercent > 0 && intakePercent < 50
+      ? "Orale Optimierung plus ergänzende Trinknahrung prüfen; bei unrealistischer Zielerreichung Eskalation interprofessionell bewerten."
+      : intakePercent > 0 && intakePercent < 75
+        ? "Orale Optimierung und ergänzende Trinknahrung abhängig vom Defizit und der Akzeptanz prüfen."
+        : "Orale Strategie fortführen und Zielerreichung kontrollieren; Eskalation nur bei ausbleibendem Erfolg.";
+
+  const reasoningSteps = [
+    {
+      id: "findings",
+      title: "Befunde zusammenführen",
+      observation: findings.length ? findings.join(" · ") : "Entscheidungsrelevante Befunde sind noch unvollständig.",
+      rule: "Patientendaten werden ohne Ergänzung oder Schätzung aus dem Assessment übernommen.",
+      conclusion: findings.length ? "Es bestehen ernährungsmedizinisch relevante Belastungsfaktoren." : "Die Datenbasis reicht noch nicht für eine belastbare Einordnung.",
+      consequence: findings.length ? "Therapiebedarf und Dringlichkeit fachlich prüfen." : "Assessment vervollständigen.",
+      source: "Patientendaten",
+      tone: findings.length ? "warning" : "open",
+    },
+    {
+      id: "safety",
+      title: "Sicherheitsgate anwenden",
+      observation: safetyChecks.filter((item) => item.status !== "ok").map((item) => item.title).join(" · ") || "Keine offenen Sicherheitsbedingung erkannt.",
+      rule: `${LOCAL_RULES.safetyGate.id}: Gewichtsbasis, Refeeding und sichere orale Zufuhr werden vor Zielwerten geprüft.`,
+      conclusion: blocked ? "Mindestens eine kritische Voraussetzung ist offen." : warnings.length ? "Keine Blockade, aber fachliche Vorbehalte bestehen." : "Sicherheitsgate passiert.",
+      consequence: blocked ? "Übernahme sperren und offene Daten bearbeiten." : "Zielkorridor darf als Entwurf angezeigt werden.",
+      source: refeedingRisk ? "NICE-CG32-2017 + NutriPilot Sicherheitsregel" : "NutriPilot Sicherheitsregel",
+      tone: blocked ? "block" : warnings.length ? "warning" : "ok",
+    },
+    {
+      id: "context",
+      title: "Passende Regelbasis wählen",
+      observation: `${ruleLabel}; ${ruleReason}`,
+      rule: `Kontextspezifische Leitlinien haben Vorrang vor dem breiten allgemeinen Korridor.`,
+      conclusion: targetMode === "individual" ? "Keine automatische kg-basierte Zielzahl." : `${energyPerKg[0]}–${energyPerKg[1]} kcal/kg und ${proteinPerKg[0].toFixed(1)}–${proteinPerKg[1].toFixed(1)} g Protein/kg als prüfbarer Korridor.`,
+      consequence: "Rechenweg offenlegen und Auswahl der Fachkraft ermöglichen.",
+      source: uniqueGuidelines(sources).map((item) => item.id).join(", ") || "individuelle Festlegung",
+      tone: targetMode === "individual" ? "warning" : "ok",
+    },
+    {
+      id: "intervention",
+      title: "Interventionsstufe ableiten",
+      observation: `${intakePercent || "offene"} % Aufnahme; Schluckstatus: ${a.swallowing || "offen"}.`,
+      rule: `${LOCAL_RULES.oralFirst.id} und ${LOCAL_RULES.deficitEscalation.id}.`,
+      conclusion: interventionConclusion,
+      consequence: "Maßnahmen in Sicherheit, orale Optimierung, Trinknahrung und Eskalation trennen.",
+      source: isGeriatric ? "DGEM-GER-2025 + NutriPilot Stufenregel" : "NICE-CG32-2017 + NutriPilot Stufenregel",
+      tone: blocked ? "block" : intakePercent > 0 && intakePercent < 75 ? "warning" : "ok",
+    },
+    {
+      id: "monitoring",
+      title: "Wirksamkeit überprüfbar machen",
+      observation: refeedingRisk || intakePercent < 50 ? "Hoher kurzfristiger Kontrollbedarf." : "Regulärer kurzfristiger Kontrollbedarf.",
+      rule: "Jede Therapieentscheidung benötigt Parameter, Intervall und Eskalationsauslöser.",
+      conclusion: `Nächste fachliche Prüfung in ${reviewDays} Tag${reviewDays === 1 ? "" : "en"}.`,
+      consequence: "Monitoringplan gemeinsam mit der Therapie übernehmen.",
+      source: "NICE-CG32-2017 + NutriPilot Monitoringregel",
+      tone: refeedingRisk || intakePercent < 50 ? "warning" : "ok",
+    },
+  ];
+
+  const explanation = blocked
+    ? `${fullName(patient)}: ${findings.length ? findings.join(", ") : "unvollständige klinische Datengrundlage"}. Weil mindestens eine sicherheitskritische Voraussetzung offen ist, zeigt NutriPilot die fachliche Herleitung, sperrt aber die Übernahme quantitativer Zielwerte.`
+    : `${fullName(patient)}: ${findings.length ? findings.join(", ") : "begrenzte klinische Datengrundlage"}. Daraus wird der Kontext „${ruleLabel}“ gewählt. Der sichtbare Korridor und die stufenweise Empfehlung sind ein prüfbarer Entwurf; die Ernährungsfachkraft bestätigt oder verändert jeden Schritt.`;
+
+  return {
+    blocked,
+    refeedingRisk,
+    refeedingCriteria: { major: majorRefeedingCriteria, minor: minorRefeedingCriteria, majorCount: majorRefeedingCount, minorCount: minorRefeedingCount },
+    dysphagia,
+    swallowPlanReady,
+    safetyChecks,
+    warnings,
+    dataQuality,
+    decisionCompleteness,
+    evidence,
+    reasoningSteps,
+    calculations,
+    targetMode,
+    ruleLabel,
+    ruleReason,
+    weightBasis,
+    energyPerKg,
+    proteinPerKg,
+    targets: targetValues,
+    selected,
+    measures: [
+      { id: "safety", title: "Priorität 1 · Sicherheit", why: "Diese Punkte müssen vor oder parallel zur Ernährungstherapie geklärt sein.", items: safetyMeasures },
+      { id: "oral", title: "Priorität 2 · Orale Ernährung optimieren", why: "Die orale Zufuhr bleibt erste Wahl, sofern sie sicher, akzeptiert und realistisch bedarfsdeckend ist.", items: oralMeasures },
+      { id: "ons", title: "Priorität 3 · Trinknahrung prüfen", why: "Ergänzung ist plausibel, wenn das Defizit mit Mahlzeiten allein voraussichtlich nicht geschlossen wird.", items: onsMeasures },
+      { id: "escalation", title: "Priorität 4 · Eskalation prüfen", why: "Bei ausbleibender Zielerreichung muss der Applikationsweg fachlich neu bewertet werden.", items: escalationMeasures },
+    ],
+    monitoring,
+    sources: uniqueGuidelines(sources),
+    explanation,
+    recommendedReviewDate: isoDate(new Date(Date.now() + reviewDays * 86400000)),
+  };
+}
+
+
+function recommendationMeasuresText(recommendation) {
+  return recommendation.measures
+    .map((group) => `${group.title}: ${group.items.join(" ")}`)
+    .join("\n\n");
+}
+
+function recommendationMonitoringText(recommendation) {
+  return recommendation.monitoring
+    .map((item) => `${item.parameter}: ${item.interval}; Eskalation bei ${item.trigger}.`)
+    .join("\n");
+}
+
 function App() {
   const [patients, setPatients] = useState(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : clone(DEMO_PATIENTS);
+      const legacyStored = LEGACY_STORAGE_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
+      const stored = localStorage.getItem(STORAGE_KEY) || legacyStored;
+      const source = stored ? JSON.parse(stored) : clone(DEMO_PATIENTS);
+      return source.map((patient) => makePatient(patient));
     } catch {
-      return clone(DEMO_PATIENTS);
+      return clone(DEMO_PATIENTS).map((patient) => makePatient(patient));
     }
   });
   const [view, setView] = useState("today");
@@ -711,9 +1229,28 @@ function App() {
           )}
         </main>
       </div>
+      <MobileNav view={view} navigate={navigate} onAdd={() => setShowNewPatient(true)} />
       {showNewPatient && <NewPatientDialog onClose={() => setShowNewPatient(false)} onCreate={createPatient} />}
       {toast && <div className="toast"><Check size={16} /> {toast}</div>}
     </div>
+  );
+}
+
+function MobileNav({ view, navigate, onAdd }) {
+  const activeView = view === "workspace" ? "patients" : view;
+  const NavButton = ({ id, icon: Icon, label }) => (
+    <button className={activeView === id ? "active" : ""} onClick={() => navigate(id)} aria-current={activeView === id ? "page" : undefined}>
+      <Icon size={19} /><span>{label}</span>
+    </button>
+  );
+  return (
+    <nav className="mobile-nav" aria-label="Mobile Hauptnavigation">
+      <NavButton id="today" icon={CalendarDays} label="Heute" />
+      <NavButton id="consults" icon={ClipboardList} label="Konsile" />
+      <button className="mobile-add" onClick={onAdd} aria-label="Neuen Patienten aufnehmen"><Plus size={21} /><span>Neu</span></button>
+      <NavButton id="patients" icon={Users} label="Fälle" />
+      <NavButton id="search" icon={Search} label="Suche" />
+    </nav>
   );
 }
 
@@ -947,7 +1484,7 @@ function PatientWorkspace({ patient, tab, setTab, back, updatePatient, notify })
           {tab === "overview" && <CaseOverview patient={patient} metrics={metrics} setTab={setTab} />}
           {tab === "assessment" && <AssessmentEditor patient={patient} updatePatient={updatePatient} setTab={setTab} />}
           {tab === "glim" && <GlimWorkspace patient={patient} updatePatient={updatePatient} />}
-          {tab === "therapy" && <TherapyWorkspace patient={patient} updatePatient={updatePatient} notify={notify} />}
+          {tab === "therapy" && <TherapyWorkspace patient={patient} updatePatient={updatePatient} notify={notify} setTab={setTab} />}
           {tab === "timeline" && <TimelineWorkspace patient={patient} updatePatient={updatePatient} />}
           {tab === "discharge" && <DischargeWorkspace patient={patient} updatePatient={updatePatient} />}
         </section>
@@ -1061,6 +1598,24 @@ function AssessmentEditor({ patient, updatePatient, setTab }) {
           <Field label="Ernährungsfachliche Notiz"><textarea value={a.notes} onChange={(e) => setAssessment({ notes: e.target.value })} placeholder="Beobachtungen, Datenherkunft und offene Fragen" /></Field>
         </FormSection>
 
+        <FormSection title="Therapiesicherheit" icon={ShieldCheck} description="Sicherheitsrelevante Angaben für den Therapie-Copilot">
+          <div className="form-grid three">
+            <Field label="Kalium"><select value={a.potassiumStatus} onChange={(e) => setAssessment({ potassiumStatus: e.target.value })}><option value="unknown">nicht dokumentiert</option><option value="normal">unauffällig</option><option value="low">erniedrigt</option><option value="high">erhöht</option></select></Field>
+            <Field label="Phosphat"><select value={a.phosphateStatus} onChange={(e) => setAssessment({ phosphateStatus: e.target.value })}><option value="unknown">nicht dokumentiert</option><option value="normal">unauffällig</option><option value="low">erniedrigt</option><option value="high">erhöht</option></select></Field>
+            <Field label="Magnesium"><select value={a.magnesiumStatus} onChange={(e) => setAssessment({ magnesiumStatus: e.target.value })}><option value="unknown">nicht dokumentiert</option><option value="normal">unauffällig</option><option value="low">erniedrigt</option><option value="high">erhöht</option></select></Field>
+            <Field label="Nierenfunktion"><select value={a.renalStatus} onChange={(e) => setAssessment({ renalStatus: e.target.value })}><option value="unknown">noch offen</option><option value="normal">unauffällig</option><option value="impaired">eingeschränkt</option></select></Field>
+            <Field label="Leberfunktion"><select value={a.liverStatus} onChange={(e) => setAssessment({ liverStatus: e.target.value })}><option value="unknown">noch offen</option><option value="normal">unauffällig</option><option value="impaired">eingeschränkt</option></select></Field>
+            <Field label="Herz-/Volumenstatus"><select value={a.cardiacStatus} onChange={(e) => setAssessment({ cardiacStatus: e.target.value })}><option value="unknown">noch offen</option><option value="normal">unauffällig</option><option value="impaired">eingeschränkt</option></select></Field>
+          </div>
+          <div className="form-grid two">
+            <label className="check-card"><input type="checkbox" checked={Boolean(a.fluidRestriction)} onChange={(e) => setAssessment({ fluidRestriction: e.target.checked })} /><span><b>Flüssigkeitsrestriktion</b><small>Automatisches Flüssigkeitsziel wird deaktiviert</small></span></label>
+            <label className="check-card"><input type="checkbox" checked={Boolean(a.swallowPlanConfirmed)} onChange={(e) => setAssessment({ swallowPlanConfirmed: e.target.checked })} /><span><b>Kostform / Schluckplan bestätigt</b><small>Für Dysphagie-Fälle erforderlich</small></span></label>
+            <label className="check-card"><input type="checkbox" checked={Boolean(a.alcoholRisk)} onChange={(e) => setAssessment({ alcoholRisk: e.target.checked })} /><span><b>Alkoholanamnese relevant</b><small>Refeeding-Risiko berücksichtigen</small></span></label>
+            <label className="check-card"><input type="checkbox" checked={Boolean(a.highRiskMedication)} onChange={(e) => setAssessment({ highRiskMedication: e.target.checked })} /><span><b>Refeeding-relevante Medikation</b><small>z. B. Insulin, Chemotherapie, Antazida oder Diuretika</small></span></label>
+          </div>
+          <Field label="Allergien / Unverträglichkeiten"><input value={a.allergies} onChange={(e) => setAssessment({ allergies: e.target.value })} placeholder="Keine bekannt / bitte konkret dokumentieren" /></Field>
+        </FormSection>
+
         <div className="form-footer">
           <span><Save size={15} /> Änderungen werden automatisch lokal gespeichert.</span>
           <button className="primary-button" onClick={() => setTab("glim")}>GLIM-Auswertung öffnen <ChevronRight size={16} /></button>
@@ -1105,58 +1660,339 @@ function GlimWorkspace({ patient, updatePatient }) {
   );
 }
 
-function TherapyWorkspace({ patient, updatePatient }) {
+function TherapyWorkspace({ patient, updatePatient, notify, setTab }) {
   const t = patient.therapy;
-  const metrics = assessmentMetrics(patient);
-  const weightBasis = patient.assessment.amputation?.present ? metrics.correctedWeight : metrics.observedWeight;
-  const setTherapy = (patch) => updatePatient(patient.id, (draft) => {
-    draft.therapy = { ...draft.therapy, ...patch };
-    draft.consultStatus = "Therapie";
-    draft.caseStatus = "Therapieentscheidung offen";
-    draft.nextStep = "Therapieplan bestätigen";
-    return draft;
-  });
-  function adoptDemoSuggestion() {
-    if (!weightBasis) return;
-    setTherapy({
-      energyGoal: Math.round((weightBasis * 30) / 50) * 50,
-      proteinGoal: Math.round(weightBasis * 1.2),
-      fluidGoal: Math.round((weightBasis * 30) / 50) * 50,
-      measures: t.measures || "Energie- und proteinangepasste Kostform; orale Ergänzung nach Verträglichkeit; Aufnahme und Zielerreichung im Verlauf prüfen.",
-      nextReview: t.nextReview || isoDate(new Date(Date.now() + 2 * 86400000)),
+  const [alternative, setAlternative] = useState(t.recommendationAlternative || "standard");
+  const [showEditor, setShowEditor] = useState(Boolean(t.energyGoal || t.measures || t.confirmed));
+  const [rejectMode, setRejectMode] = useState(false);
+  const [rejectReason, setRejectReason] = useState(t.recommendationReason || "");
+  const recommendation = useMemo(() => therapyRecommendation(patient, alternative), [patient, alternative]);
+
+  useEffect(() => {
+    setAlternative(patient.therapy.recommendationAlternative || "standard");
+    setRejectReason(patient.therapy.recommendationReason || "");
+  }, [patient.id]);
+
+  function jumpTo(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function patchTherapy(patch, message) {
+    updatePatient(patient.id, (draft) => {
+      draft.therapy = { ...draft.therapy, ...patch };
+      draft.consultStatus = "Therapie";
+      draft.caseStatus = draft.therapy.confirmed ? "Therapie aktiv" : "Therapieentscheidung offen";
+      draft.nextStep = draft.therapy.confirmed ? "Verlauf kontrollieren" : "Therapieplan bestätigen";
+      return draft;
+    }, message);
+  }
+
+  function editTherapy(patch) {
+    patchTherapy({
+      ...patch,
+      recommendationStatus: t.recommendationStatus === "accepted" || t.recommendationStatus === "confirmed" ? "adapted" : t.recommendationStatus,
     });
   }
-  function confirmPlan() {
+
+  function chooseAlternative(value) {
+    setAlternative(value);
+    patchTherapy({ recommendationAlternative: value, recommendationStatus: t.recommendationStatus === "rejected" ? "draft" : t.recommendationStatus });
+  }
+
+  function confirmWeightBasis(checked) {
+    patchTherapy({ weightBasisConfirmed: checked, recommendationStatus: "draft" }, checked ? "Gewichtsbasis wurde bestätigt" : "Bestätigung der Gewichtsbasis wurde aufgehoben");
+  }
+
+  function adoptRecommendation() {
+    if (recommendation.blocked) {
+      if (notify) notify("Offene Sicherheitsprüfungen verhindern die Übernahme");
+      return;
+    }
     updatePatient(patient.id, (draft) => {
+      const rec = therapyRecommendation(draft, alternative);
+      draft.therapy = {
+        ...draft.therapy,
+        energyGoal: rec.selected.energy ?? draft.therapy.energyGoal,
+        proteinGoal: rec.selected.protein ?? draft.therapy.proteinGoal,
+        fluidGoal: rec.selected.fluid ?? draft.therapy.fluidGoal,
+        measures: recommendationMeasuresText(rec),
+        monitoringPlan: recommendationMonitoringText(rec),
+        nextReview: rec.recommendedReviewDate,
+        recommendationStatus: "accepted",
+        recommendationReason: "",
+        recommendationAlternative: alternative,
+        recommendationGeneratedAt: new Date().toISOString(),
+        recommendationAcceptedAt: new Date().toISOString(),
+        confirmed: false,
+      };
+      draft.consultStatus = "Therapie";
+      draft.caseStatus = "Therapieentwurf übernommen";
+      draft.nextStep = "Therapieentwurf prüfen und bestätigen";
+      draft.timeline.unshift({
+        id: `E-${Date.now()}`,
+        date: isoDate(),
+        time: currentTime(),
+        type: "Therapie-Copilot",
+        title: "Nachvollziehbarer Therapieentwurf übernommen",
+        text: `Strategie: ${alternative}. Regelkontext: ${rec.ruleLabel}. Quellen: ${rec.sources.map((source) => source.id).join(", ") || "individuelle Festlegung"}. Datenbasis ${rec.decisionCompleteness} %. Noch nicht fachlich bestätigt.`,
+      });
+      return draft;
+    }, "Therapieentwurf wurde übernommen");
+    setShowEditor(true);
+    setRejectMode(false);
+  }
+
+  function rejectRecommendation() {
+    if (!rejectReason.trim()) {
+      if (notify) notify("Bitte Ablehnungsgrund dokumentieren");
+      return;
+    }
+    updatePatient(patient.id, (draft) => {
+      draft.therapy.recommendationStatus = "rejected";
+      draft.therapy.recommendationReason = rejectReason.trim();
+      draft.therapy.recommendationGeneratedAt = new Date().toISOString();
+      draft.caseStatus = "Therapieempfehlung abgelehnt";
+      draft.nextStep = "Individuellen Therapieplan erstellen";
+      draft.timeline.unshift({
+        id: `E-${Date.now()}`,
+        date: isoDate(),
+        time: currentTime(),
+        type: "Therapie-Copilot",
+        title: "Therapieempfehlung fachlich abgelehnt",
+        text: rejectReason.trim(),
+      });
+      return draft;
+    }, "Ablehnung wurde dokumentiert");
+    setRejectMode(false);
+    setShowEditor(true);
+  }
+
+  function confirmPlan() {
+    if (recommendation.blocked) {
+      if (notify) notify("Sicherheitsprüfungen müssen zuerst abgeschlossen werden");
+      return;
+    }
+    if (!t.energyGoal || !t.proteinGoal || !t.measures) {
+      if (notify) notify("Energie, Protein und Maßnahmen müssen fachlich festgelegt sein");
+      return;
+    }
+    updatePatient(patient.id, (draft) => {
+      const wasConfirmed = draft.therapy.confirmed;
+      const rec = therapyRecommendation(draft, draft.therapy.recommendationAlternative || "standard");
       draft.therapy.confirmed = true;
+      draft.therapy.confirmedAt = new Date().toISOString();
+      draft.therapy.confirmedBy = "Laura Becker";
+      draft.therapy.recommendationStatus = "confirmed";
       draft.consultStatus = "Monitoring";
       draft.caseStatus = "Therapie aktiv";
       draft.nextStep = "Verlauf kontrollieren";
-      draft.timeline.unshift({ id: `E-${Date.now()}`, date: isoDate(), time: currentTime(), type: "Therapie", title: "Therapieplan bestätigt", text: draft.therapy.measures || "Therapiemaßnahmen wurden festgelegt." });
+      draft.timeline.unshift({
+        id: `E-${Date.now()}`,
+        date: isoDate(),
+        time: currentTime(),
+        type: "Therapie",
+        title: wasConfirmed ? "Therapieplan fachlich aktualisiert" : "Therapieplan fachlich bestätigt",
+        text: `Energie ${draft.therapy.energyGoal} kcal/Tag, Protein ${draft.therapy.proteinGoal} g/Tag${draft.therapy.fluidGoal ? `, Flüssigkeit ${draft.therapy.fluidGoal} ml/Tag` : ""}. Regelkontext: ${rec.ruleLabel}. Quellenbasis: ${rec.sources.map((source) => source.id).join(", ") || "individuelle Festlegung"}.`,
+      });
       return draft;
-    }, "Therapieplan wurde aktiviert");
+    }, "Therapieplan wurde fachlich bestätigt");
   }
+
+  const strategyLabels = {
+    vorsichtig: "unterer Zielkorridor",
+    standard: "Mittelwert des Korridors",
+    protein: "Protein am oberen Korridor",
+  };
+  const statusLabel = recommendation.blocked
+    ? "Sicherheitsstopp"
+    : t.confirmed
+      ? "Fachlich bestätigt"
+      : t.recommendationStatus === "accepted"
+        ? "Entwurf übernommen"
+        : t.recommendationStatus === "adapted"
+          ? "Fachlich angepasst"
+          : t.recommendationStatus === "rejected"
+            ? "Abgelehnt"
+            : "Vorschlag zur Prüfung";
+
   return (
-    <section className="panel therapy-panel">
-      <div className="therapy-header">
-        <div><span className="eyebrow">Vorschlag statt Autopilot</span><h2>Therapieplanung</h2><p>NutriPilot bereitet Parameter und Dokumentation vor. Die Entscheidung bleibt vollständig bei der Fachkraft.</p></div>
-        <div className="therapy-state"><span>Status</span><b>{t.confirmed ? "Plan aktiv" : "Entscheidung offen"}</b><small>Gewichtsbasis: {weightBasis ? `${weightBasis.toFixed(1)} kg` : "offen"}</small></div>
-      </div>
-      <div className="suggestion-strip"><Sparkles size={18} /><div><b>Demovorschlag vorbereiten</b><span>Rechnerischer Platzhalter, nicht klinisch freigegeben. Jeder Wert bleibt änderbar.</span></div><button className="secondary-button" onClick={adoptDemoSuggestion}>Vorschlag übernehmen</button></div>
-      <div className="form-grid three therapy-fields">
-        <Field label="Energieziel (kcal/Tag)"><input type="number" value={t.energyGoal} onChange={(e) => setTherapy({ energyGoal: e.target.value })} /></Field>
-        <Field label="Proteinziel (g/Tag)"><input type="number" value={t.proteinGoal} onChange={(e) => setTherapy({ proteinGoal: e.target.value })} /></Field>
-        <Field label="Flüssigkeitsziel (ml/Tag)"><input type="number" value={t.fluidGoal} onChange={(e) => setTherapy({ fluidGoal: e.target.value })} /></Field>
-      </div>
-      <Field label="Ziele und Maßnahmen"><textarea value={t.measures} onChange={(e) => setTherapy({ measures: e.target.value })} placeholder="Konkrete, überprüfbare Maßnahmen formulieren" /></Field>
-      <div className="form-grid two">
-        <Field label="Nächste Verlaufskontrolle"><input type="date" value={t.nextReview} onChange={(e) => setTherapy({ nextReview: e.target.value })} /></Field>
-        <div className="source-card"><BookOpen size={18} /><div><b>Transparenz</b><span>Vor klinischem Einsatz werden hier freigegebene Regelwerke und Quellen je Vorschlag angezeigt.</span></div></div>
-      </div>
-      <div className="form-footer"><span>{t.confirmed ? "Änderungen am aktiven Plan werden nachvollziehbar fortgeschrieben." : "Plan erst nach fachlicher Prüfung aktivieren."}</span><button className="primary-button" disabled={!t.energyGoal || !t.proteinGoal || !t.measures} onClick={confirmPlan}>{t.confirmed ? "Änderungen bestätigen" : "Therapieplan bestätigen"}</button></div>
-    </section>
+    <div className="stack therapy-copilot-workspace">
+      <section className="panel therapy-copilot-hero">
+        <div className="therapy-copilot-head">
+          <div>
+            <span className="eyebrow">Patientendaten → Sicherheitslogik → Leitlinie → Rechenweg → Empfehlung</span>
+            <h2>Nachvollziehbarer Therapie-Copilot</h2>
+            <p>Jeder medizinische Schluss ist bis zur verwendeten Patienteneingabe, Regel und Quelle zurückverfolgbar. NutriPilot erzeugt einen prüfbaren Entwurf – keine autonome Therapieentscheidung.</p>
+            <div className="therapy-hero-actions">
+              <button className="primary-button" onClick={() => jumpTo("therapy-basis")}><Database size={16} /> Entscheidungsgrundlage öffnen</button>
+              <button className="secondary-button" onClick={() => jumpTo("therapy-reasoning")}><GitBranch size={16} /> Medizinische Herleitung</button>
+              <button className="secondary-button" onClick={() => jumpTo("therapy-calculations")}><Calculator size={16} /> Rechenweg</button>
+            </div>
+          </div>
+          <div className={`recommendation-status ${recommendation.blocked ? "blocked" : t.confirmed ? "confirmed" : "draft"}`}>
+            <span>Status</span>
+            <b>{statusLabel}</b>
+            <small>Datenbasis: {recommendation.decisionCompleteness} % · {recommendation.dataQuality}</small>
+          </div>
+        </div>
+        <div className="ai-summary-card">
+          <span className="ai-summary-icon"><Sparkles size={21} /></span>
+          <div>
+            <b>Medizinisch-logische Zusammenfassung</b>
+            <p>{recommendation.explanation}</p>
+            <small>v1.2: reproduzierbare Regel- und Erklärungsschicht. Fehlende Werte werden nicht erfunden und bleiben sichtbar offen.</small>
+          </div>
+        </div>
+      </section>
+
+      <nav className="therapy-section-nav" aria-label="Bereiche des Therapie-Copiloten">
+        <button onClick={() => jumpTo("therapy-basis")}><Database size={15} /> Datenbasis</button>
+        <button onClick={() => jumpTo("therapy-safety")}><ShieldCheck size={15} /> Sicherheit</button>
+        <button onClick={() => jumpTo("therapy-reasoning")}><GitBranch size={15} /> Herleitung</button>
+        <button onClick={() => jumpTo("therapy-calculations")}><Calculator size={15} /> Rechenweg</button>
+        <button onClick={() => jumpTo("therapy-plan")}><Utensils size={15} /> Empfehlung</button>
+        <button onClick={() => jumpTo("therapy-sources")}><BookOpen size={15} /> Quellen</button>
+      </nav>
+
+      <section className="panel decision-basis-panel anchor-section" id="therapy-basis">
+        <div className="panel-heading">
+          <div><span className="eyebrow">Direkter Zugriff auf die Entscheidungsgrundlage</span><h3>Welche Patientendaten fließen in die Empfehlung ein?</h3><p>Status, Herkunft und medizinische Bedeutung jeder Information sind sichtbar. Offene Daten werden nicht stillschweigend ersetzt.</p></div>
+          <button className="secondary-button" onClick={() => setTab("assessment")}>Assessment bearbeiten</button>
+        </div>
+        <div className="evidence-grid">
+          {recommendation.evidence.map((item) => <EvidenceCard key={`${item.domain}-${item.label}`} item={item} />)}
+        </div>
+        {patient.assessment.amputation?.present && (
+          <label className={`weight-basis-confirm ${t.weightBasisConfirmed ? "confirmed" : "open"}`}>
+            <input type="checkbox" checked={Boolean(t.weightBasisConfirmed)} onChange={(event) => confirmWeightBasis(event.target.checked)} />
+            <span><b>Korrigierte Gewichtsbasis fachlich bestätigen</b><small>{assessmentMetrics(patient).observedWeight.toFixed(1)} kg ÷ (1 − {(assessmentMetrics(patient).segmentPercent / 100).toFixed(3)}) = {assessmentMetrics(patient).correctedWeight.toFixed(1)} kg. Segment und Berechnungsbasis sind vor Nutzung klinisch zu prüfen.</small></span>
+          </label>
+        )}
+      </section>
+
+      <section className="panel safety-gate-panel anchor-section" id="therapy-safety">
+        <div className="panel-heading">
+          <div><span className="eyebrow">Vor jeder quantitativen Empfehlung</span><h3>Sicherheitsprüfung</h3><p>Kritische Lücken stoppen die Übernahme. Warnungen bleiben als fachliche Vorbehalte neben dem Vorschlag sichtbar.</p></div>
+          <span className={`gate-summary ${recommendation.blocked ? "blocked" : "ready"}`}>{recommendation.blocked ? "Übernahme gesperrt" : `${recommendation.warnings.length} Hinweise`}</span>
+        </div>
+        <div className="safety-check-grid">
+          {recommendation.safetyChecks.map((check) => <SafetyCheckCard key={check.key} check={check} />)}
+        </div>
+        {recommendation.refeedingRisk && <RefeedingCriteriaPanel criteria={recommendation.refeedingCriteria} />}
+        {recommendation.blocked && (
+          <div className="safety-stop-banner"><AlertTriangle size={20} /><div><b>NutriPilot gibt noch keinen übernehmbaren Therapieplan frei.</b><span>Die medizinische Herleitung bleibt einsehbar; quantitative Werte können erst nach Abschluss der rot markierten Voraussetzungen übernommen werden.</span></div><button className="secondary-button" onClick={() => setTab("assessment")}>Offene Daten bearbeiten</button></div>
+        )}
+      </section>
+
+      <section className="panel reasoning-panel anchor-section" id="therapy-reasoning">
+        <div className="panel-heading">
+          <div><span className="eyebrow">Medizinisch logisch nachvollziehbare Schlüsse</span><h3>Von der Beobachtung zur Empfehlung</h3><p>Jede Stufe zeigt: Beobachtung → angewandte Regel → fachlicher Schluss → konkrete Auswirkung.</p></div>
+          <span className="logic-badge"><GitBranch size={14} /> {recommendation.reasoningSteps.length} prüfbare Schritte</span>
+        </div>
+        <div className="reasoning-flow">
+          {recommendation.reasoningSteps.map((step, index) => <ReasoningStep key={step.id} step={step} index={index + 1} />)}
+        </div>
+      </section>
+
+      <section className="panel calculation-panel anchor-section" id="therapy-calculations">
+        <div className="panel-heading">
+          <div><span className="eyebrow">Keine Zahl ohne Rechenweg</span><h3>Berechnungen und verwendete Gewichtsbasis</h3><p>Ausgangswert, Formel, Ergebnis, Begründung und Quelle werden gemeinsam angezeigt.</p></div>
+        </div>
+        <div className="calculation-grid">
+          {recommendation.calculations.map((item) => <CalculationTraceCard key={item.label} item={item} />)}
+        </div>
+      </section>
+
+      <section className="panel target-corridor-panel anchor-section" id="therapy-targets">
+        <div className="panel-heading">
+          <div><span className="eyebrow">Zielkorridor statt Scheinpräzision</span><h3>Quantitative Orientierung</h3><p>{recommendation.targetMode === "individual" ? "Die automatische kg-basierte Berechnung ist für diesen Fall bewusst deaktiviert." : `${recommendation.energyPerKg[0]}–${recommendation.energyPerKg[1]} kcal/kg und ${recommendation.proteinPerKg[0].toFixed(1)}–${recommendation.proteinPerKg[1].toFixed(1)} g Protein/kg. Kontextwahl: ${recommendation.ruleReason}`}</p></div>
+          <div className="strategy-switch" aria-label="Therapiestrategie">
+            {[
+              ["vorsichtig", "Unterer Korridor"],
+              ["standard", "Korridormitte"],
+              ["protein", "Protein-Fokus"],
+            ].map(([value, label]) => <button key={value} className={alternative === value ? "active" : ""} onClick={() => chooseAlternative(value)}>{label}</button>)}
+          </div>
+        </div>
+        <div className="target-range-grid">
+          <TargetRangeCard label="Energie" unit="kcal/Tag" low={recommendation.targets.energyLow} high={recommendation.targets.energyHigh} selected={recommendation.selected.energy} note={recommendation.targetMode === "individual" ? "Berechnungsbasis individuell festlegen" : strategyLabels[alternative]} />
+          <TargetRangeCard label="Protein" unit="g/Tag" low={recommendation.targets.proteinLow} high={recommendation.targets.proteinHigh} selected={recommendation.selected.protein} note={recommendation.targetMode === "individual" ? "Organfunktion und geeignete Gewichtsbasis berücksichtigen" : strategyLabels[alternative]} />
+          <TargetRangeCard label="Flüssigkeit" unit="ml/Tag" low={recommendation.targets.fluidLow} high={recommendation.targets.fluidHigh} selected={recommendation.selected.fluid} note={patient.assessment.fluidRestriction || patient.assessment.renalStatus === "impaired" || patient.assessment.cardiacStatus === "impaired" ? "Automatik aus Sicherheitsgründen deaktiviert" : "klinischen Volumenstatus prüfen"} />
+        </div>
+      </section>
+
+      <section className="panel staged-plan-panel anchor-section" id="therapy-plan">
+        <div className="panel-heading"><div><span className="eyebrow">Empfehlung mit explizitem Warum</span><h3>Priorisierter Maßnahmenplan</h3><p>Jede Maßnahmenstufe zeigt nicht nur was vorgeschlagen wird, sondern warum sie aus diesem Fall folgt.</p></div></div>
+        <div className="recommendation-groups">
+          {recommendation.measures.map((group, index) => <RecommendationGroup key={group.id} group={group} index={index + 1} />)}
+        </div>
+      </section>
+
+      <section className="panel monitoring-plan-panel">
+        <div className="panel-heading"><div><span className="eyebrow">Therapie ohne Monitoring ist unvollständig</span><h3>Vorgeschlagener Kontrollplan</h3><p>Parameter, Intervall und Eskalationsauslöser werden gemeinsam in den Verlauf übernommen.</p></div><span className="review-date">Nächste Prüfung: {formatDate(recommendation.recommendedReviewDate)}</span></div>
+        <div className="monitoring-table">
+          <div className="monitoring-row header"><b>Parameter</b><b>Intervall</b><b>Eskalation</b></div>
+          {recommendation.monitoring.map((item) => <div className="monitoring-row" key={item.parameter}><span>{item.parameter}</span><b>{item.interval}</b><small>{item.trigger}</small></div>)}
+        </div>
+      </section>
+
+      <section className="panel source-evidence-panel anchor-section" id="therapy-sources">
+        <div className="panel-heading"><div><span className="eyebrow">Versionierte Wissensbasis</span><h3>Fachliche Quellen dieses Vorschlags</h3><p>Jeder Korridor und jede Sicherheitsregel wird mit Geltungsbereich und konkretem Empfehlungsabschnitt dargestellt.</p></div></div>
+        <div className="source-list">
+          {recommendation.sources.length ? recommendation.sources.map((source) => <GuidelineSource key={source.id} source={source} />) : <div className="empty-source">Für diesen individualisierten Fall wurde noch keine automatische Quellenregel ausgewählt.</div>}
+        </div>
+        <div className="local-rule-list">
+          {Object.values(LOCAL_RULES).map((rule) => <div className="local-rule-card" key={rule.id}><span>{rule.id}</span><div><b>{rule.title}</b><p>{rule.note}</p></div></div>)}
+        </div>
+      </section>
+
+      <section className="panel recommendation-actions-panel">
+        <div className="recommendation-actions-copy">
+          <span className="eyebrow">Fachliche Entscheidung</span>
+          <h3>Vorschlag übernehmen, anpassen oder ablehnen</h3>
+          <p>Die Entscheidung sowie Regelkontext, Quellen und Datenstand werden in der Clinical Timeline dokumentiert.</p>
+        </div>
+        <div className="recommendation-action-buttons">
+          <button className="primary-button" disabled={recommendation.blocked} onClick={adoptRecommendation}><Check size={16} /> Vorschlag übernehmen</button>
+          <button className="secondary-button" onClick={() => setShowEditor(true)}>Manuell anpassen</button>
+          <button className="danger-outline-button" onClick={() => setRejectMode((value) => !value)}>Ablehnen</button>
+        </div>
+        {t.recommendationStatus === "rejected" && <div className="rejection-history"><b>Dokumentierter Ablehnungsgrund</b><span>{t.recommendationReason}</span></div>}
+        {rejectMode && (
+          <div className="rejection-editor">
+            <Field label="Fachlicher Ablehnungsgrund"><textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Warum ist dieser Vorschlag für den konkreten Patienten nicht geeignet?" /></Field>
+            <div><button className="secondary-button" onClick={() => setRejectMode(false)}>Abbrechen</button><button className="danger-button" onClick={rejectRecommendation}>Ablehnung dokumentieren</button></div>
+          </div>
+        )}
+      </section>
+
+      {showEditor && (
+        <section className="panel therapy-editor-panel">
+          <div className="panel-heading">
+            <div><span className="eyebrow">Fachlich editierbarer Therapieplan</span><h3>Bestätigte Zielwerte und Maßnahmen</h3><p>Übernommene Werte bleiben vollständig änderbar. Abweichungen werden als Anpassung gekennzeichnet.</p></div>
+            <span className={`edit-status status-${t.recommendationStatus}`}>{t.recommendationStatus || "draft"}</span>
+          </div>
+          <div className="form-grid three therapy-fields">
+            <Field label="Energieziel (kcal/Tag)"><input type="number" value={t.energyGoal} onChange={(event) => editTherapy({ energyGoal: event.target.value })} /></Field>
+            <Field label="Proteinziel (g/Tag)"><input type="number" value={t.proteinGoal} onChange={(event) => editTherapy({ proteinGoal: event.target.value })} /></Field>
+            <Field label="Flüssigkeitsziel (ml/Tag)"><input type="number" value={t.fluidGoal} onChange={(event) => editTherapy({ fluidGoal: event.target.value })} placeholder={patient.assessment.fluidRestriction ? "individuell" : ""} /></Field>
+          </div>
+          <Field label="Ziele und Maßnahmen"><textarea className="large-textarea" value={t.measures} onChange={(event) => editTherapy({ measures: event.target.value })} placeholder="Konkrete, priorisierte und überprüfbare Maßnahmen" /></Field>
+          <Field label="Monitoringplan"><textarea value={t.monitoringPlan} onChange={(event) => editTherapy({ monitoringPlan: event.target.value })} placeholder="Parameter, Intervall und Eskalationskriterien" /></Field>
+          <div className="form-grid two">
+            <Field label="Nächste Verlaufskontrolle"><input type="date" value={t.nextReview} onChange={(event) => editTherapy({ nextReview: event.target.value })} /></Field>
+            <div className="approval-card"><ShieldCheck size={20} /><div><b>Human-in-the-loop</b><span>Die Fachkraft übernimmt die klinische Verantwortung und bestätigt den finalen Plan.</span></div></div>
+          </div>
+          <div className="form-footer">
+            <span>{t.confirmedAt ? `Zuletzt bestätigt am ${new Date(t.confirmedAt).toLocaleString("de-DE")} durch ${t.confirmedBy || "Fachkraft"}.` : "Noch nicht fachlich bestätigt."}</span>
+            <button className="primary-button" disabled={recommendation.blocked || !t.energyGoal || !t.proteinGoal || !t.measures} onClick={confirmPlan}>{t.confirmed ? "Änderungen bestätigen" : "Therapieplan fachlich bestätigen"}</button>
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
+
 
 function TimelineWorkspace({ patient, updatePatient }) {
   const [entry, setEntry] = useState({ type: "Verlauf", weight: "", intake: "", text: "" });
@@ -1250,11 +2086,12 @@ function DischargeWorkspace({ patient, updatePatient }) {
 function CopilotPanel({ patient, tab, metrics, setTab }) {
   const completeness = assessmentCompleteness(patient);
   const evaluation = glimEvaluation(patient);
+  const therapyRec = therapyRecommendation(patient);
   const messages = {
     overview: { title: patient.nextStep, text: `Der Fall ist zu ${completeness} % strukturiert erfasst. NutriPilot zeigt zuerst die fehlenden entscheidungsrelevanten Daten.` },
     assessment: { title: completeness === 100 ? "Assessment prüfbereit" : "Assessment gezielt ergänzen", text: missingAssessmentItems(patient).join(" · ") || "Keine offensichtliche Datenlücke im MVP-Datensatz." },
     glim: { title: evaluation.status, text: evaluation.explanation },
-    therapy: { title: patient.therapy.confirmed ? "Therapieplan aktiv" : "Fachliche Entscheidung offen", text: "Vorschläge bleiben transparent, änderbar und werden nicht autonom aktiviert." },
+    therapy: { title: therapyRec.blocked ? "Sicherheitsprüfung offen" : patient.therapy.confirmed ? "Therapieplan aktiv" : "Leitlinienentwurf prüfbereit", text: therapyRec.blocked ? therapyRec.safetyChecks.filter((item) => item.status === "block").map((item) => item.title).join(" · ") : therapyRec.explanation },
     timeline: { title: "Veränderung statt Wiederholung", text: "Dokumentiere nur neue Beobachtungen, Entscheidungen und deren Konsequenzen." },
     discharge: { title: patient.discharge.completed ? "Fall abgeschlossen" : "Abschluss vorbereiten", text: "Die Clinical Note entsteht aus den bereits bestätigten strukturierten Daten." },
   };
@@ -1323,7 +2160,7 @@ function NewPatientDialog({ onClose, onCreate }) {
             <div className="form-grid three">
               <Field label="NRS-2002"><input type="number" min="0" max="7" value={form.screening} onChange={(e) => update("screening", e.target.value)} /></Field>
               <Field label="Priorität"><select value={form.priority} onChange={(e) => update("priority", e.target.value)}><option value="50">normal</option><option value="70">heute</option><option value="85">hoch</option><option value="95">sofort prüfen</option></select></Field>
-              <Field label="Kontext"><select value={form.scenario} onChange={(e) => update("scenario", e.target.value)}><option>Neuaufnahme</option><option>Geriatrie</option><option>Onkologie</option><option>Refeeding</option><option>Dysphagie</option><option>Amputation</option><option>Homecare</option></select></Field>
+              <Field label="Kontext"><select value={form.scenario} onChange={(e) => update("scenario", e.target.value)}><option>Neuaufnahme</option><option>Geriatrie</option><option>Onkologie</option><option>Refeeding</option><option>Dysphagie</option><option>Amputation</option><option>Homecare</option><option>Adipositas + Mangelernährung</option></select></Field>
             </div>
           </FormSection>
         </div>
@@ -1380,5 +2217,85 @@ function CompletenessRing({ value }) { return <div className="completeness"><div
 function StoryBlock({ title, items, tone }) { return <div className={`story-block ${tone}`}><h4>{title}</h4>{items.map((item) => <div key={item}><Check size={14} /><span>{item}</span></div>)}</div>; }
 function CriteriaCard({ title, items }) { return <section className="criteria-card"><h3>{title}</h3>{items.map((item) => <div className="criterion" key={item.label}><span className={`criterion-state ${item.state}`}>{item.state === "yes" ? "✓" : item.state === "no" ? "–" : "?"}</span><div><b>{item.label}</b><strong>{item.value}</strong><small>{item.source}</small></div></div>)}</section>; }
 function ChecklistItem({ done, title, text }) { return <div className={`checklist-item ${done ? "done" : "open"}`}><span>{done ? <Check size={16} /> : <Clock3 size={16} />}</span><div><b>{title}</b><small>{text}</small></div><strong>{done ? "bereit" : "offen"}</strong></div>; }
+function EvidenceCard({ item }) {
+  const stateLabel = item.state === "confirmed" ? "bestätigt" : item.state === "warning" ? "mit Vorbehalt" : "offen";
+  const stateIcon = item.state === "confirmed" ? <Check size={14} /> : item.state === "warning" ? <AlertTriangle size={14} /> : <Clock3 size={14} />;
+  return (
+    <article className={`evidence-card evidence-${item.state}`}>
+      <div className="evidence-top"><span>{item.domain}</span><small>{stateIcon}{stateLabel}</small></div>
+      <h4>{item.label}</h4>
+      <b>{item.value}</b>
+      <p>{item.meaning}</p>
+      <footer><Database size={13} /> {item.source}</footer>
+    </article>
+  );
+}
+
+function SafetyCheckCard({ check }) {
+  const icon = check.status === "ok" ? <Check size={16} /> : check.status === "block" ? <AlertTriangle size={16} /> : <Clock3 size={16} />;
+  const label = check.status === "ok" ? "geprüft" : check.status === "block" ? "offen – stoppt Übernahme" : "fachlich prüfen";
+  return (
+    <article className={`safety-check-card ${check.status}`}>
+      <span className="safety-check-icon">{icon}</span>
+      <div><b>{check.title}</b><p>{check.detail}</p><small>{label}</small><div className="safety-meta"><span><BookOpen size={12} /> {check.source}</span><span><ChevronRight size={12} /> {check.action}</span></div></div>
+    </article>
+  );
+}
+
+function RefeedingCriteriaPanel({ criteria }) {
+  return (
+    <div className="refeeding-criteria-panel">
+      <div className="refeeding-head"><AlertTriangle size={17} /><div><b>Warum wurde Refeeding-Risiko abgeleitet?</b><span>NICE CG32: ein Hauptkriterium oder mindestens zwei Nebenkriterien. Prozentwerte zur Aufnahme dienen im Demo-MVP als transparent gekennzeichnete Näherung.</span></div></div>
+      <div className="refeeding-columns">
+        <div><h4>Hauptkriterien · erfüllt {criteria.majorCount}</h4>{criteria.major.map((item) => <CriterionTrace key={item.label} item={item} />)}</div>
+        <div><h4>Nebenkriterien · erfüllt {criteria.minorCount}</h4>{criteria.minor.map((item) => <CriterionTrace key={item.label} item={item} />)}</div>
+      </div>
+    </div>
+  );
+}
+
+function CriterionTrace({ item }) {
+  return <div className={`criterion-trace ${item.met ? "met" : "not-met"}`}><span>{item.met ? <Check size={13} /> : "–"}</span><div><b>{item.label}{item.proxy ? " · Demo-Näherung" : ""}</b><small>Patientenwert: {item.actual}</small></div></div>;
+}
+
+function ReasoningStep({ step, index }) {
+  return (
+    <article className={`reasoning-step reasoning-${step.tone}`}>
+      <span className="reasoning-number">{index}</span>
+      <div className="reasoning-main">
+        <div className="reasoning-title"><h4>{step.title}</h4><small>{step.source}</small></div>
+        <div className="reasoning-cells">
+          <div><span>Beobachtung</span><p>{step.observation}</p></div>
+          <div><span>Angewandte Regel</span><p>{step.rule}</p></div>
+          <div><span>Fachlicher Schluss</span><p>{step.conclusion}</p></div>
+          <div><span>Auswirkung</span><p>{step.consequence}</p></div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function CalculationTraceCard({ item }) {
+  return (
+    <article className="calculation-trace-card">
+      <div className="calculation-card-head"><span><Calculator size={16} /></span><h4>{item.label}</h4></div>
+      <div className="formula-box"><small>Formel / Ausgangswerte</small><code>{item.formula}</code></div>
+      <div className="calculation-result"><small>Ergebnis</small><b>{item.result}</b></div>
+      <p>{item.rationale}</p>
+      <footer><BookOpen size={12} /> {item.source}</footer>
+    </article>
+  );
+}
+
+function TargetRangeCard({ label, unit, low, high, selected, note }) {
+  const hasRange = low !== null && low !== undefined && high !== null && high !== undefined;
+  return <article className="target-range-card"><span>{label}</span><b>{hasRange ? `${low}–${high}` : "individuell"}</b><small>{hasRange ? unit : "keine automatische Zahl"}</small><div><strong>{selected ? `Vorschlag ${selected} ${unit}` : "Fachlich festlegen"}</strong><p>{note}</p></div></article>;
+}
+function RecommendationGroup({ group, index }) {
+  return <article className={`recommendation-group group-${group.id}`}><span className="recommendation-index">{index}</span><div><h4>{group.title}</h4><div className="recommendation-why"><Info size={14} /><span><b>Warum:</b> {group.why}</span></div>{group.items.map((item) => <p key={item}><Check size={14} />{item}</p>)}</div></article>;
+}
+function GuidelineSource({ source }) {
+  return <a className="guideline-source" href={source.url} target="_blank" rel="noreferrer"><span><BookOpen size={18} /></span><div><b>{source.title}</b><small>{source.id} · {source.recommendation} · Version {source.version}</small><p>{source.note}</p><em>Geltungsbereich: {source.scope}</em></div><ExternalLink size={16} /></a>;
+}
 
 createRoot(document.getElementById("root")).render(<App />);
