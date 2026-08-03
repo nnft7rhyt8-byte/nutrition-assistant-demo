@@ -1,26 +1,33 @@
-# NutriPilot v0.7.0
+# NutriPilot v0.8.0
 
-React/Vite-Konzeptprototyp für den realen Konsil-Workflow einer Ernährungsfachkraft.
+Kompletter UX-Neuentwurf für den Konsil-Workflow klinischer Ernährungsfachkräfte.
 
-## Neu in v0.7
+## Neu in v0.8
 
-- Konsil-Cockpit als Startseite
-- sechs realistische Demo-Konsile
-- fachliche Priorisierung und Statusdarstellung
-- Konsilübernahme mit vorhandenen Klinikdaten
-- klare Trennung: bereits vorhanden / ernährungsfachlich noch erforderlich
-- Assessment als zentrale Datendrehscheibe
-- modulare Fortschrittsanzeige
-- automatische GLIM-Auswertung ohne Doppeleingaben
-- transparente Begründung der Einstufung
-- Maßnahmenvorschläge aus Assessmentdaten
-- Monitoring mit Legende, Achsen, Therapieereignis und Interpretation
-- automatisch vorbereitete Entlassungsdokumentation
+- komplett neue Informationsarchitektur
+- neue Navigation: Konsile, Heute, Dokumentation, Qualität, Leitlinien
+- Konsil-Cockpit als echte Arbeitszentrale
+- acht realistische Demo-Konsile
+- sichtbare Priorisierung und nächster Schritt
+- neuer Konsil-Workspace mit sechs Bereichen:
+  - Konsil
+  - Assessment
+  - Diagnostik
+  - Therapie
+  - Verlauf
+  - Dokumentation
+- modulares Assessment mit eigener Bereichsnavigation
+- vorhandene Klinikdaten klar von ergänzenden Angaben getrennt
+- GLIM als Diagnose-Cockpit ohne Doppeleingaben
+- Therapieplanung als prüfbarer Vorschlag
+- Clinical Timeline mit Ereignissen und Verlaufsauswertung
+- automatische Clinical Note mit PDF-/Freigabeansicht
+- kontextbezogener NutriPilot-Copilot
 
-## Upload auf GitHub
+## GitHub Pages
 
 1. ZIP entpacken.
-2. Den Inhalt des Ordners in `nutrition-assistant-demo` hochladen.
+2. Inhalt vollständig in `nutrition-assistant-demo` hochladen.
 3. `.github/workflows/deploy.yml` mit hochladen.
 4. Unter `Settings → Pages` die Quelle `GitHub Actions` verwenden.
 5. Workflow abwarten.
@@ -28,6 +35,6 @@ React/Vite-Konzeptprototyp für den realen Konsil-Workflow einer Ernährungsfach
 Demo:
 `https://nnft7rhyt8-byte.github.io/nutrition-assistant-demo/`
 
-## Status
+## Klinischer Status
 
-Noch nicht klinisch validierter Konzeptprototyp. Nicht für echte Patientendaten, Diagnosen oder autonome Therapieentscheidungen.
+Konzeptprototyp, noch nicht klinisch validiert. Nicht für echte Patientendaten oder autonome Diagnose- und Therapieentscheidungen.
