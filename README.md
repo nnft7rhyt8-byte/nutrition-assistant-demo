@@ -1,17 +1,28 @@
-# NutriPilot Pilot v0.3
+# NutriPilot React/Vite Prototype v0.5
 
-Fachlich fundierter Konzeptprototyp für eine einzelne Ernährungsfachkraft.
+## Start
+```bash
+npm install
+npm run dev
+```
 
-## Geltungsbereich
-- Erwachsene, nicht intensivpflichtige stationäre Patienten
-- NRS-2002 Risikoscreening
+## Production build
+```bash
+npm run build
+npm run preview
+```
+
+## Inhalt
+- Vollständige Patientenreise
+- NRS-2002
 - Ernährungsassessment
-- GLIM 5-year update 2025
-- Maßnahmen, Monitoring, Dokumentation
-- Kein Einsatz mit echten Patientendaten
+- Amputations-/Segmentkorrektur
+- GLIM
+- Maßnahmen
+- Monitoring mit Legende und Achsen
+- Entlassung
+- Qualitäts- und Regelansicht
 
-## Wichtiger Status
-Dieser Prototyp ist noch nicht klinisch validiert. Er bildet den begrenzten Pilot-Workflow quellenbasiert ab, muss aber vor klinischer Nutzung durch qualifizierte Fachpersonen geprüft und freigegeben werden.
-
-## Deployment
-`index.html` im Stammverzeichnis über GitHub Pages veröffentlichen. Kein Build-Schritt erforderlich.
+## Klinischer Status
+Konzeptprototyp, nicht klinisch validiert und nicht für echte Patientendaten.
+Die Segmentkorrektur ist eine Schätzung. Die Gewichtsbasis für Energie/Protein wird separat durch die Fachkraft ausgewählt.
