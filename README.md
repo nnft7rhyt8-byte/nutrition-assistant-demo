@@ -1,40 +1,58 @@
-# NutriPilot v0.8.0
+# NutriPilot v1.0 MVP
 
-Kompletter UX-Neuentwurf für den Konsil-Workflow klinischer Ernährungsfachkräfte.
+Interaktive Arbeitsversion eines Clinical Nutrition Workspace für klinische Ernährungsfachkräfte.
 
-## Neu in v0.8
+## Enthalten
 
-- komplett neue Informationsarchitektur
-- neue Navigation: Konsile, Heute, Dokumentation, Qualität, Leitlinien
-- Konsil-Cockpit als echte Arbeitszentrale
-- acht realistische Demo-Konsile
-- sichtbare Priorisierung und nächster Schritt
-- neuer Konsil-Workspace mit sechs Bereichen:
-  - Konsil
-  - Assessment
-  - Diagnostik
-  - Therapie
-  - Verlauf
-  - Dokumentation
-- modulares Assessment mit eigener Bereichsnavigation
-- vorhandene Klinikdaten klar von ergänzenden Angaben getrennt
-- GLIM als Diagnose-Cockpit ohne Doppeleingaben
-- Therapieplanung als prüfbarer Vorschlag
-- Clinical Timeline mit Ereignissen und Verlaufsauswertung
-- automatische Clinical Note mit PDF-/Freigabeansicht
-- kontextbezogener NutriPilot-Copilot
+- vollständige neue v1.0-Informationsarchitektur
+- `Mein Arbeitstag` als priorisierter Arbeitsvorrat
+- Konsilübersicht und Clinical Nutrition Workspace
+- acht vorhandene fiktive Testpatienten
+- vollständige Neuanlage weiterer Testpatienten und Konsile
+- zentraler Assessment-Datenkern
+- transparente Amputationskorrektur
+- vorbereitete GLIM-Prüfung mit fachlicher Bestätigung
+- Therapieplanung mit änderbarem Demovorschlag
+- Clinical Timeline mit neuen Verlaufseinträgen
+- Entlassungscheck und automatisch vorbereitete Clinical Note
+- lokale Browser-Persistenz via `localStorage`
+- lokaler JSON-Export und Zurücksetzen der Demodaten
+- responsive Darstellung für Desktop und Tablet
+
+## Wichtige Grenze dieser Version
+
+Diese GitHub-Pages-Version ist eine echte interaktive MVP-Arbeitsversion, aber **kein klinisches Produktionssystem**. Die Daten liegen ausschließlich im Browser und die Website ist öffentlich erreichbar. Deshalb dürfen ausschließlich fiktive Testdaten eingegeben werden.
+
+Für echte Patientendaten werden mindestens benötigt:
+
+- geschützte Anmeldung und Rollen/Rechte
+- serverseitige Datenbank und verschlüsselte Übertragung
+- Mandanten- und Krankenhauskonzept
+- Audit Trail und revisionssichere Änderungen
+- Backups, Lösch- und Aufbewahrungskonzept
+- Datenschutz- und Informationssicherheitsprüfung
+- klinisch validiertes Regelwerk
+- Schnittstellen zur Krankenhaus-IT
 
 ## GitHub Pages
 
-1. ZIP entpacken.
-2. Inhalt vollständig in `nutrition-assistant-demo` hochladen.
-3. `.github/workflows/deploy.yml` mit hochladen.
-4. Unter `Settings → Pages` die Quelle `GitHub Actions` verwenden.
-5. Workflow abwarten.
+Repository: `nnft7rhyt8-byte/nutrition-assistant-demo`
 
-Demo:
+Nach Upload auf den Branch `main` startet `.github/workflows/deploy.yml` automatisch. In GitHub muss unter `Settings → Pages` als Quelle `GitHub Actions` gewählt sein.
+
+Demo-URL:
+
 `https://nnft7rhyt8-byte.github.io/nutrition-assistant-demo/`
 
-## Klinischer Status
+## Lokal testen
 
-Konzeptprototyp, noch nicht klinisch validiert. Nicht für echte Patientendaten oder autonome Diagnose- und Therapieentscheidungen.
+```bash
+npm install
+npm run dev
+```
+
+Produktionsbuild:
+
+```bash
+npm run build
+```

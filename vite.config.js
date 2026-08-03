@@ -1,7 +1,2 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-
-export default defineConfig({
-  plugins: [react()],
-  base: "/nutrition-assistant-demo/",
-});
+export default defineConfig({ base: "/nutrition-assistant-demo/" });
