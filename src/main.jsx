@@ -30,28 +30,59 @@ const PHASES = [
 
 function App() {
   const [page, setPage] = useState("journey");
-  const [phase, setPhase] = useState("assessment");
-  const [done, setDone] = useState(["admission", "screening"]);
+  const [phase, setPhase] = useState("screening");
+  const [done, setDone] = useState(["admission"]);
   const [toast, setToast] = useState("");
-  const [amputation, setAmputation] = useState({
-    present: true,
-    segment: "belowKnee",
-    bilateral: false,
-    observedWeight: 58,
-    heightCm: 162,
-    needsWeightBasis: "observed"
+
+  const [nrs, setNrs] = useState({
+    prescreen: { bmiLow: false, weightLoss: true, intakeReduced: true, severeDisease: false },
+    nutritionScore: 2,
+    diseaseScore: 1,
+    age: 82
   });
 
-  const selected = SEGMENTS.find(s => s.id === amputation.segment) || SEGMENTS[0];
-  const missingPercent = amputation.present
-    ? selected.percent * (amputation.bilateral ? 2 : 1)
+  const [assessment, setAssessment] = useState({
+    observedWeight: 58,
+    heightCm: 162,
+    weight1m: 61.0,
+    weight3m: 65.2,
+    weight6m: 66.0,
+    intakePercent: 42,
+    intakeDays: 8,
+    appetite: "deutlich vermindert",
+    proteinPercent: 45,
+    fluidMl: 1050,
+    chewing: "unauffällig",
+    swallowing: "nicht sicher beurteilt",
+    nausea: false,
+    vomiting: false,
+    diarrhea: false,
+    constipation: true,
+    muscleMethod: "notMeasured",
+    muscleReduced: null,
+    inflammation: null,
+    inflammationNote: "Akute Erkrankung; klinische Einordnung offen. CRP nur unterstützend.",
+    mobility: "eingeschränkt",
+    handgrip: "",
+    livingSituation: "allein mit ambulanter Unterstützung",
+    edema: false,
+    ascites: false,
+    amputation: {
+      present: true,
+      segment: "belowKnee",
+      bilateral: false,
+      needsWeightBasis: "observed"
+    }
+  });
+
+  const ampSegment = SEGMENTS.find(s => s.id === assessment.amputation.segment) || SEGMENTS[0];
+  const missingPercent = assessment.amputation.present
+    ? ampSegment.percent * (assessment.amputation.bilateral ? 2 : 1)
     : 0;
-  const estimatedWeight = missingPercent < 100
-    ? amputation.observedWeight / (1 - missingPercent / 100)
-    : amputation.observedWeight;
-  const observedBmi = amputation.observedWeight / Math.pow(amputation.heightCm / 100, 2);
-  const correctedBmi = estimatedWeight / Math.pow(amputation.heightCm / 100, 2);
-  const needsWeight = amputation.needsWeightBasis === "corrected" ? estimatedWeight : amputation.observedWeight;
+  const estimatedWeight = assessment.observedWeight / (1 - missingPercent / 100);
+  const observedBmi = assessment.observedWeight / Math.pow(assessment.heightCm / 100, 2);
+  const correctedBmi = estimatedWeight / Math.pow(assessment.heightCm / 100, 2);
+  const needsWeight = assessment.amputation.needsWeightBasis === "corrected" ? estimatedWeight : assessment.observedWeight;
 
   const notify = (m) => {
     setToast(m);
@@ -76,7 +107,7 @@ function App() {
               <strong>Fachlich fundierter Konzeptprototyp – noch nicht klinisch validiert</strong>
               <span>Geltungsbereich: erwachsene, nicht intensivpflichtige stationäre Patienten. Keine Verwendung mit echten Patientendaten.</span>
             </div>
-            <div className="source-tag">GLIM · NRS-2002 · Segmentkorrektur</div>
+            <div className="source-tag">NRS-2002 · GLIM 2025 · zentrale Datenerfassung</div>
           </div>
 
           {page === "journey" && (
@@ -85,15 +116,16 @@ function App() {
               setPhase={setPhase}
               done={done}
               completePhase={completePhase}
-              amputation={amputation}
-              setAmputation={setAmputation}
-              selected={selected}
+              nrs={nrs}
+              setNrs={setNrs}
+              assessment={assessment}
+              setAssessment={setAssessment}
+              ampSegment={ampSegment}
               missingPercent={missingPercent}
               estimatedWeight={estimatedWeight}
               observedBmi={observedBmi}
               correctedBmi={correctedBmi}
               needsWeight={needsWeight}
-              setPage={setPage}
             />
           )}
           {page === "monitor" && <Monitoring />}
@@ -142,9 +174,8 @@ function Topbar() {
 
 function Journey(props) {
   const {
-    phase, setPhase, done, completePhase, amputation, setAmputation,
-    selected, missingPercent, estimatedWeight, observedBmi, correctedBmi,
-    needsWeight, setPage
+    phase, setPhase, done, completePhase, nrs, setNrs, assessment, setAssessment,
+    ampSegment, missingPercent, estimatedWeight, observedBmi, correctedBmi, needsWeight
   } = props;
   const progress = Math.round(done.length / PHASES.length * 100);
 
@@ -163,11 +194,9 @@ function Journey(props) {
           <small>{done.length} von 7 Phasen abgeschlossen</small>
           <div className="phase-list">
             {PHASES.map(([id, label], index) => (
-              <button
-                key={id}
+              <button key={id}
                 className={`phase-button ${phase === id ? "active" : ""} ${done.includes(id) ? "done" : ""}`}
-                onClick={() => setPhase(id)}
-              >
+                onClick={() => setPhase(id)}>
                 <span>{done.includes(id) ? <Check size={14}/> : index + 1}</span>
                 <div><b>{label}</b><small>{phase === id ? "In Bearbeitung" : done.includes(id) ? "Abgeschlossen" : "Offen"}</small></div>
               </button>
@@ -177,48 +206,29 @@ function Journey(props) {
 
         <section className="card workspace">
           {phase === "admission" && <SimplePhase title="1. Aufnahme" subtitle="Basisdaten und erste Ernährungshinweise erfassen." onComplete={() => completePhase("admission")} />}
-          {phase === "screening" && <Screening onComplete={() => completePhase("screening")} />}
+          {phase === "screening" && <Screening nrs={nrs} setNrs={setNrs} onComplete={() => completePhase("screening")} />}
           {phase === "assessment" && (
             <Assessment
-              amputation={amputation}
-              setAmputation={setAmputation}
-              selected={selected}
-              missingPercent={missingPercent}
-              estimatedWeight={estimatedWeight}
-              observedBmi={observedBmi}
-              correctedBmi={correctedBmi}
-              needsWeight={needsWeight}
+              assessment={assessment} setAssessment={setAssessment}
+              ampSegment={ampSegment} missingPercent={missingPercent}
+              estimatedWeight={estimatedWeight} observedBmi={observedBmi}
+              correctedBmi={correctedBmi} needsWeight={needsWeight}
               onComplete={() => completePhase("assessment")}
             />
           )}
-          {phase === "glim" && <GLIM correctedBmi={correctedBmi} onComplete={() => completePhase("glim")} />}
-          {phase === "plan" && <Plan needsWeight={needsWeight} onComplete={() => completePhase("plan")} />}
+          {phase === "glim" && <GLIM assessment={assessment} correctedBmi={correctedBmi} onComplete={() => completePhase("glim")} />}
+          {phase === "plan" && <Plan needsWeight={needsWeight} assessment={assessment} onComplete={() => completePhase("plan")} />}
           {phase === "monitor" && <Monitoring compact onComplete={() => completePhase("monitor")} />}
-          {phase === "discharge" && <Discharge onComplete={() => completePhase("discharge")} />}
+          {phase === "discharge" && <Discharge assessment={assessment} correctedBmi={correctedBmi} onComplete={() => completePhase("discharge")} />}
         </section>
 
         <aside className="card copilot">
           <div className="card-title"><HeartPulse size={17}/><h3>NutriPilot Begleitung</h3></div>
-          <div className="insight">
-            <b>Aktuelle Phase</b>
-            <p>{PHASES.find(([id]) => id === phase)?.[1]}</p>
-          </div>
-          {phase === "assessment" && (
-            <>
-              <div className="insight warning">
-                <b>Amputation berücksichtigt</b>
-                <p>Für BMI und Gewichtsinterpretation wird zusätzlich ein amputationskorrigiertes Schätzgewicht angezeigt.</p>
-              </div>
-              <div className="insight">
-                <b>Keine automatische Bedarfsentscheidung</b>
-                <p>Das Gewicht für Energie und Protein wird von der Fachkraft separat ausgewählt und dokumentiert.</p>
-              </div>
-            </>
-          )}
-          <div className="insight">
-            <b>Transparenz</b>
-            <p>Berechnung, Segmentanteil und verwendete Gewichtsbasis bleiben sichtbar und nachvollziehbar.</p>
-          </div>
+          <div className="insight"><b>Aktuelle Phase</b><p>{PHASES.find(([id]) => id === phase)?.[1]}</p></div>
+          {phase === "screening" && <div className="insight warning"><b>Zweistufiges NRS-2002</b><p>Vier Fragen bilden nur das Vorscreening. Bei mindestens einem Ja wird das Hauptscreening mit Ernährungsstatus, Krankheitsschwere und Alterszuschlag geöffnet.</p></div>}
+          {phase === "assessment" && <div className="insight warning"><b>Zentrale Datenquelle</b><p>Alles, was hier erfasst wird, fließt automatisch in GLIM, Maßnahmen, Monitoring und Entlassung ein.</p></div>}
+          {phase === "glim" && <div className="insight"><b>Keine Doppeleingabe</b><p>GLIM wertet ausschließlich bereits dokumentierte Assessmentdaten aus. Offene Kriterien führen zurück zur Datenerhebung.</p></div>}
+          <div className="insight"><b>Fachkraft entscheidet</b><p>NutriPilot berechnet und erklärt. Diagnose und Therapie werden fachlich bestätigt.</p></div>
         </aside>
       </div>
     </>
@@ -240,136 +250,214 @@ function SimplePhase({ title, subtitle, onComplete }) {
   );
 }
 
-function Screening({ onComplete }) {
+function Screening({ nrs, setNrs, onComplete }) {
+  const pre = nrs.prescreen;
+  const prePositive = Object.values(pre).some(Boolean);
+  const agePoint = nrs.age >= 70 ? 1 : 0;
+  const total = nrs.nutritionScore + nrs.diseaseScore + agePoint;
+  const updatePre = (key, value) => setNrs({...nrs, prescreen: {...pre, [key]: value}});
+
   return (
     <div className="phase-content">
-      <PhaseHeader title="2. NRS-2002 Screening" subtitle="Risikoscreening; ein positives Ergebnis ist noch keine Diagnose."/>
-      <div className="form-grid">
-        <Field label="BMI <20,5 kg/m²?"><select><option>Nein</option><option>Ja</option></select></Field>
-        <Field label="Gewichtsverlust in 3 Monaten?"><select><option>Ja</option><option>Nein</option></select></Field>
-        <Field label="Nahrungsaufnahme vermindert?"><select><option>Ja</option><option>Nein</option></select></Field>
-        <Field label="Schwere Erkrankung / Intensiv?"><select><option>Nein</option><option>Ja</option></select></Field>
+      <PhaseHeader title="2. NRS-2002 Screening" subtitle="Zweistufiges Risikoscreening für erwachsene Krankenhauspatienten; keine Diagnose."/>
+      <div className="workflow-note"><b>Schritt 1: Vorscreening</b><span>Mindestens eine Ja-Antwort öffnet das Hauptscreening. Bei viermal Nein wird entsprechend Klinikprozess erneut gescreent.</span></div>
+
+      <div className="nrs-prescreen">
+        <YesNoRow label="BMI unter 20,5 kg/m²?" value={pre.bmiLow} onChange={v=>updatePre("bmiLow",v)} />
+        <YesNoRow label="Gewichtsverlust innerhalb der letzten 3 Monate?" value={pre.weightLoss} onChange={v=>updatePre("weightLoss",v)} />
+        <YesNoRow label="Verminderte Nahrungsaufnahme in der letzten Woche?" value={pre.intakeReduced} onChange={v=>updatePre("intakeReduced",v)} />
+        <YesNoRow label="Schwere Erkrankung / Intensivbehandlung?" value={pre.severeDisease} onChange={v=>updatePre("severeDisease",v)} />
       </div>
-      <div className="result-panel"><div><b>NRS-2002: 4 Punkte</b><p>Ernährungsrisiko vorhanden – vollständiges Assessment erforderlich.</p></div><span>Positiv</span></div>
+
+      <div className={`prescreen-result ${prePositive ? "positive" : "negative"}`}>
+        <b>{prePositive ? "Vorscreening positiv" : "Vorscreening unauffällig"}</b>
+        <span>{prePositive ? "Mindestens eine Frage wurde mit Ja beantwortet. Hauptscreening erforderlich." : "Alle Fragen wurden mit Nein beantwortet. Wiederholung nach Klinikstandard."}</span>
+      </div>
+
+      {prePositive && <>
+        <div className="workflow-note main-screen"><b>Schritt 2: Hauptscreening</b><span>Score = beeinträchtigter Ernährungsstatus + Krankheitsschwere + Alterszuschlag ab 70 Jahren.</span></div>
+        <div className="score-grid">
+          <ScoreSelector
+            title="Beeinträchtigter Ernährungsstatus"
+            value={nrs.nutritionScore}
+            onChange={v=>setNrs({...nrs,nutritionScore:v})}
+            options={[
+              ["0","Normaler Ernährungsstatus"],
+              ["1","Leicht: z. B. >5 % Gewichtsverlust in 3 Monaten oder Aufnahme 50–75 %"],
+              ["2","Moderat: z. B. >5 % Gewichtsverlust in 2 Monaten / BMI 18,5–20,5 + Beeinträchtigung / Aufnahme 25–60 %"],
+              ["3","Schwer: z. B. >5 % Gewichtsverlust in 1 Monat / BMI <18,5 + Beeinträchtigung / Aufnahme 0–25 %"]
+            ]}
+          />
+          <ScoreSelector
+            title="Krankheitsschwere / erhöhter Bedarf"
+            value={nrs.diseaseScore}
+            onChange={v=>setNrs({...nrs,diseaseScore:v})}
+            options={[
+              ["0","Kein zusätzlicher Punkt"],
+              ["1","Leicht: z. B. chronische Erkrankung mit akuter Komplikation"],
+              ["2","Moderat: z. B. große abdominale Operation, Schlaganfall, schwere Pneumonie"],
+              ["3","Schwer: z. B. Intensivbehandlung / APACHE II >10"]
+            ]}
+          />
+        </div>
+
+        <div className="nrs-calculation">
+          <CalcItem label="Ernährungsstatus" value={nrs.nutritionScore}/>
+          <span>+</span><CalcItem label="Krankheitsschwere" value={nrs.diseaseScore}/>
+          <span>+</span><CalcItem label={`Alter ${nrs.age} Jahre`} value={agePoint}/>
+          <span>=</span><CalcItem label="Gesamtscore" value={total} strong/>
+        </div>
+
+        <div className={`result-panel ${total >= 3 ? "severe" : ""}`}>
+          <div><b>{total >= 3 ? "Ernährungsrisiko vorhanden" : "Kein Ernährungsrisiko nach NRS-2002"}</b>
+          <p>{total >= 3 ? "Score ≥3: vollständiges Ernährungsassessment und individueller Versorgungsplan erforderlich." : "Erneutes Screening entsprechend Klinikprozess."}</p></div>
+          <span>{total} Punkte</span>
+        </div>
+      </>}
+
       <PhaseActions onComplete={onComplete}/>
     </div>
   );
 }
 
-function Assessment({ amputation, setAmputation, selected, missingPercent, estimatedWeight, observedBmi, correctedBmi, needsWeight, onComplete }) {
-  const update = (key, value) => setAmputation({...amputation, [key]: value});
+function YesNoRow({label,value,onChange}) {
+  return <div className="yesno-row"><b>{label}</b><div><button className={value ? "selected yes" : ""} onClick={()=>onChange(true)}>Ja</button><button className={!value ? "selected no" : ""} onClick={()=>onChange(false)}>Nein</button></div></div>
+}
+function ScoreSelector({title,value,onChange,options}) {
+  return <div className="score-selector"><h3>{title}</h3>{options.map(([score,text])=><label key={score} className={value===Number(score)?"selected":""}><input type="radio" checked={value===Number(score)} onChange={()=>onChange(Number(score))}/><span className="score-number">{score}</span><span>{text}</span></label>)}</div>
+}
+function CalcItem({label,value,strong}) { return <div className={`calc-item ${strong?"strong":""}`}><b>{value}</b><small>{label}</small></div>}
+
+function Assessment({ assessment, setAssessment, ampSegment, missingPercent, estimatedWeight, observedBmi, correctedBmi, needsWeight, onComplete }) {
+  const update = (key, value) => setAssessment({...assessment, [key]: value});
+  const updateAmp = (key, value) => setAssessment({...assessment, amputation:{...assessment.amputation,[key]:value}});
+  const weightLoss3m = ((assessment.weight3m-assessment.observedWeight)/assessment.weight3m)*100;
+  const completionItems = [
+    assessment.observedWeight>0, assessment.heightCm>0, assessment.weight3m>0,
+    assessment.intakePercent>=0, assessment.intakeDays>0,
+    assessment.muscleMethod!=="notMeasured" && assessment.muscleReduced!==null,
+    assessment.inflammation!==null
+  ];
+  const completion = Math.round(completionItems.filter(Boolean).length/completionItems.length*100);
+  const missing = [];
+  if(assessment.muscleMethod==="notMeasured" || assessment.muscleReduced===null) missing.push("Muskelmasse");
+  if(assessment.inflammation===null) missing.push("Krankheitslast / Entzündung");
+
   return (
     <div className="phase-content">
-      <PhaseHeader title="3. Ernährungsassessment" subtitle="Gewichtsverlauf, Aufnahme, Körperzusammensetzung und besondere Einflussfaktoren erfassen."/>
-      <div className="form-grid">
-        <Field label="Aktuell gemessenes Gewicht (kg)">
-          <input type="number" step="0.1" value={amputation.observedWeight} onChange={e => update("observedWeight", Number(e.target.value))}/>
-        </Field>
-        <Field label="Körpergröße (cm)">
-          <input type="number" value={amputation.heightCm} onChange={e => update("heightCm", Number(e.target.value))}/>
-        </Field>
-        <Field label="Gewicht vor 3 Monaten"><input defaultValue="65,2 kg"/></Field>
-        <Field label="Energieaufnahme"><input defaultValue="<50 % seit 8 Tagen"/></Field>
-      </div>
+      <PhaseHeader title="3. Ernährungsassessment" subtitle="Zentrale Datenerfassung: Diese Angaben werden anschließend automatisch in GLIM, Maßnahmen, Monitoring und Entlassung verwendet."/>
+      <div className="assessment-progress"><div><b>Assessment {completion}% vollständig</b><span>{missing.length ? `Offen: ${missing.join(", ")}` : "Alle GLIM-relevanten Daten erhoben"}</span></div><div className="progress"><span style={{width:`${completion}%`}}/></div></div>
 
-      <div className="module">
-        <div className="module-head">
-          <div><Scale size={19}/><div><h3>Amputation / fehlende Körpersegmente</h3><p>Korrektur als Schätzhilfe für BMI und Gewichtsinterpretation.</p></div></div>
-          <label className="switch"><input type="checkbox" checked={amputation.present} onChange={e => update("present", e.target.checked)}/><span/></label>
+      <AssessmentSection title="Anthropometrie & Gewichtsverlauf">
+        <div className="form-grid">
+          <Field label="Aktuell gemessenes Gewicht (kg)"><input type="number" step="0.1" value={assessment.observedWeight} onChange={e=>update("observedWeight",Number(e.target.value))}/></Field>
+          <Field label="Körpergröße (cm)"><input type="number" value={assessment.heightCm} onChange={e=>update("heightCm",Number(e.target.value))}/></Field>
+          <Field label="Gewicht vor 1 Monat (kg)"><input type="number" step="0.1" value={assessment.weight1m} onChange={e=>update("weight1m",Number(e.target.value))}/></Field>
+          <Field label="Gewicht vor 3 Monaten (kg)"><input type="number" step="0.1" value={assessment.weight3m} onChange={e=>update("weight3m",Number(e.target.value))}/></Field>
+          <Field label="Gewicht vor 6 Monaten (kg)"><input type="number" step="0.1" value={assessment.weight6m} onChange={e=>update("weight6m",Number(e.target.value))}/></Field>
+          <Field label="Berechneter Gewichtsverlust"><input readOnly value={`${weightLoss3m.toFixed(1)} % in 3 Monaten`}/></Field>
+          <Field label="Ödeme"><select value={assessment.edema?"yes":"no"} onChange={e=>update("edema",e.target.value==="yes")}><option value="no">Nein</option><option value="yes">Ja – Gewichtsinterpretation eingeschränkt</option></select></Field>
+          <Field label="Aszites"><select value={assessment.ascites?"yes":"no"} onChange={e=>update("ascites",e.target.value==="yes")}><option value="no">Nein</option><option value="yes">Ja – Gewichtsinterpretation eingeschränkt</option></select></Field>
         </div>
+      </AssessmentSection>
 
-        {amputation.present && (
-          <>
-            <div className="form-grid">
-              <Field label="Fehlendes Körpersegment">
-                <select value={amputation.segment} onChange={e => update("segment", e.target.value)}>
-                  {SEGMENTS.filter(s => s.id !== "none").map(s => <option key={s.id} value={s.id}>{s.label} · {s.percent}%</option>)}
-                </select>
-              </Field>
-              <Field label="Seite / Anzahl">
-                <select value={amputation.bilateral ? "bilateral" : "unilateral"} onChange={e => update("bilateral", e.target.value === "bilateral")}>
-                  <option value="unilateral">Einseitig</option>
-                  <option value="bilateral">Beidseitig</option>
-                </select>
-              </Field>
-            </div>
+      <AssessmentSection title="Nahrungsaufnahme & Symptome">
+        <div className="form-grid">
+          <Field label="Energieaufnahme (% des Bedarfs)"><input type="number" value={assessment.intakePercent} onChange={e=>update("intakePercent",Number(e.target.value))}/></Field>
+          <Field label="Dauer der Reduktion (Tage)"><input type="number" value={assessment.intakeDays} onChange={e=>update("intakeDays",Number(e.target.value))}/></Field>
+          <Field label="Proteinaufnahme (% des Ziels)"><input type="number" value={assessment.proteinPercent} onChange={e=>update("proteinPercent",Number(e.target.value))}/></Field>
+          <Field label="Flüssigkeitsaufnahme (ml/Tag)"><input type="number" value={assessment.fluidMl} onChange={e=>update("fluidMl",Number(e.target.value))}/></Field>
+          <Field label="Appetit"><select value={assessment.appetite} onChange={e=>update("appetite",e.target.value)}><option>normal</option><option>leicht vermindert</option><option>deutlich vermindert</option><option>kein Appetit</option></select></Field>
+          <Field label="Schlucken"><select value={assessment.swallowing} onChange={e=>update("swallowing",e.target.value)}><option>unauffällig</option><option>nicht sicher beurteilt</option><option>auffällig – Abklärung erforderlich</option></select></Field>
+        </div>
+        <div className="symptom-row">
+          {["nausea","vomiting","diarrhea","constipation"].map(k=><label key={k}><input type="checkbox" checked={assessment[k]} onChange={e=>update(k,e.target.checked)}/>{({nausea:"Übelkeit",vomiting:"Erbrechen",diarrhea:"Durchfall",constipation:"Obstipation"})[k]}</label>)}
+        </div>
+      </AssessmentSection>
 
-            <div className="amputation-results">
-              <Metric label="Gemessenes Gewicht" value={`${amputation.observedWeight.toFixed(1)} kg`}/>
-              <Metric label="Fehlender Anteil" value={`${missingPercent.toFixed(1)} %`}/>
-              <Metric label="Geschätztes Vollgewicht" value={`${estimatedWeight.toFixed(1)} kg`}/>
-              <Metric label="Korrigierter BMI" value={`${correctedBmi.toFixed(1)} kg/m²`}/>
-            </div>
+      <AssessmentSection title="Muskelmasse, Funktion & Krankheitslast">
+        <div className="form-grid">
+          <Field label="Muskelmassen-Messmethode"><select value={assessment.muscleMethod} onChange={e=>{update("muscleMethod",e.target.value); if(e.target.value==="notMeasured") update("muscleReduced",null)}}><option value="notMeasured">Nicht erhoben</option><option value="bia">BIA</option><option value="dxa">DXA</option><option value="ct">CT-basierte Messung</option><option value="anthropometry">Validierte Anthropometrie</option></select></Field>
+          <Field label="Muskelmasse reduziert?"><select value={assessment.muscleReduced===null?"unknown":assessment.muscleReduced?"yes":"no"} onChange={e=>update("muscleReduced",e.target.value==="unknown"?null:e.target.value==="yes")} disabled={assessment.muscleMethod==="notMeasured"}><option value="unknown">Nicht beurteilbar</option><option value="yes">Ja – Referenzwert unterschritten</option><option value="no">Nein</option></select></Field>
+          <Field label="Mobilität"><select value={assessment.mobility} onChange={e=>update("mobility",e.target.value)}><option>uneingeschränkt</option><option>eingeschränkt</option><option>überwiegend bettlägerig</option></select></Field>
+          <Field label="Handkraft (optional, funktionell)"><input value={assessment.handgrip} onChange={e=>update("handgrip",e.target.value)} placeholder="Messwert und Einheit"/></Field>
+          <Field label="Krankheitslast / Entzündung"><select value={assessment.inflammation===null?"unknown":assessment.inflammation?"yes":"no"} onChange={e=>update("inflammation",e.target.value==="unknown"?null:e.target.value==="yes")}><option value="unknown">Noch nicht klinisch eingeordnet</option><option value="yes">Kriterium erfüllt</option><option value="no">Kriterium nicht erfüllt</option></select></Field>
+          <Field label="Begründung / klinischer Kontext"><textarea value={assessment.inflammationNote} onChange={e=>update("inflammationNote",e.target.value)}/></Field>
+        </div>
+      </AssessmentSection>
 
-            <div className="formula">
-              <Calculator size={17}/>
-              <div>
-                <b>Transparente Berechnung</b>
-                <code>WtE = Wto ÷ (1 − P) = {amputation.observedWeight.toFixed(1)} ÷ (1 − {(missingPercent/100).toFixed(3)}) = {estimatedWeight.toFixed(1)} kg</code>
-                <p>WtE = geschätztes Vollgewicht, Wto = beobachtetes Gewicht, P = Anteil des fehlenden Segments.</p>
-              </div>
-            </div>
-
-            <div className="comparison">
-              <div><small>Unkorrigierter BMI</small><b>{observedBmi.toFixed(1)} kg/m²</b></div>
-              <ChevronRight/>
-              <div><small>Amputationskorrigierter BMI</small><b>{correctedBmi.toFixed(1)} kg/m²</b></div>
-            </div>
-
-            <div className="caution">
-              <AlertTriangle size={18}/>
-              <div><b>Methodische Grenze</b><p>Die Segmentkorrektur ist eine klinische Schätzung; es gibt laut Academy derzeit kein allgemein validiertes BMI-Instrument für Menschen mit Amputation. Klinisches Urteil und alternative Körperzusammensetzungsdaten bleiben wichtig.</p></div>
-            </div>
-          </>
-        )}
+      <div className="module">
+        <div className="module-head"><div><Scale size={19}/><div><h3>Amputation / fehlende Körpersegmente</h3><p>Korrektur als transparente Schätzhilfe für BMI und Gewichtsinterpretation.</p></div></div><label className="switch"><input type="checkbox" checked={assessment.amputation.present} onChange={e=>updateAmp("present",e.target.checked)}/><span/></label></div>
+        {assessment.amputation.present && <>
+          <div className="form-grid">
+            <Field label="Fehlendes Körpersegment"><select value={assessment.amputation.segment} onChange={e=>updateAmp("segment",e.target.value)}>{SEGMENTS.filter(s=>s.id!=="none").map(s=><option key={s.id} value={s.id}>{s.label} · {s.percent}%</option>)}</select></Field>
+            <Field label="Seite / Anzahl"><select value={assessment.amputation.bilateral?"bilateral":"unilateral"} onChange={e=>updateAmp("bilateral",e.target.value==="bilateral")}><option value="unilateral">Einseitig</option><option value="bilateral">Beidseitig</option></select></Field>
+          </div>
+          <div className="amputation-results"><Metric label="Gemessenes Gewicht" value={`${assessment.observedWeight.toFixed(1)} kg`}/><Metric label="Fehlender Anteil" value={`${missingPercent.toFixed(1)} %`}/><Metric label="Geschätztes Vollgewicht" value={`${estimatedWeight.toFixed(1)} kg`}/><Metric label="Korrigierter BMI" value={`${correctedBmi.toFixed(1)} kg/m²`}/></div>
+          <div className="formula"><Calculator size={17}/><div><b>Berechnung</b><code>WtE = {assessment.observedWeight.toFixed(1)} ÷ (1 − {(missingPercent/100).toFixed(3)}) = {estimatedWeight.toFixed(1)} kg</code><p>Schätzwert; klinische Beurteilung und alternative Körperzusammensetzungsdaten bleiben erforderlich.</p></div></div>
+        </>}
       </div>
 
       <div className="module">
-        <div className="module-head"><div><Stethoscope size={19}/><div><h3>Gewichtsbasis für Bedarfsberechnung</h3><p>Bewusst getrennt vom BMI festlegen.</p></div></div></div>
+        <h3>Gewichtsbasis für Bedarfsberechnung</h3>
         <div className="choice-grid">
-          <label className={amputation.needsWeightBasis === "observed" ? "choice active" : "choice"}>
-            <input type="radio" name="basis" checked={amputation.needsWeightBasis === "observed"} onChange={() => update("needsWeightBasis", "observed")}/>
-            <b>Gemessenes Gewicht</b><span>{amputation.observedWeight.toFixed(1)} kg</span><small>Standardauswahl im Prototyp</small>
-          </label>
-          <label className={amputation.needsWeightBasis === "corrected" ? "choice active" : "choice"}>
-            <input type="radio" name="basis" checked={amputation.needsWeightBasis === "corrected"} onChange={() => update("needsWeightBasis", "corrected")}/>
-            <b>Korrigiertes Schätzgewicht</b><span>{estimatedWeight.toFixed(1)} kg</span><small>Nur nach fachlicher Begründung</small>
-          </label>
+          <label className={assessment.amputation.needsWeightBasis==="observed"?"choice active":"choice"}><input type="radio" checked={assessment.amputation.needsWeightBasis==="observed"} onChange={()=>updateAmp("needsWeightBasis","observed")}/><b>Gemessenes Gewicht</b><span>{assessment.observedWeight.toFixed(1)} kg</span><small>Aktive Standardauswahl</small></label>
+          <label className={assessment.amputation.needsWeightBasis==="corrected"?"choice active":"choice"}><input type="radio" checked={assessment.amputation.needsWeightBasis==="corrected"} onChange={()=>updateAmp("needsWeightBasis","corrected")}/><b>Korrigiertes Schätzgewicht</b><span>{estimatedWeight.toFixed(1)} kg</span><small>Nur mit fachlicher Begründung</small></label>
         </div>
-        <div className="basis-result">Aktiv verwendete Gewichtsbasis: <b>{needsWeight.toFixed(1)} kg</b></div>
+        <div className="basis-result">Für den Maßnahmenentwurf verwendete Gewichtsbasis: <b>{needsWeight.toFixed(1)} kg</b></div>
       </div>
-
       <PhaseActions onComplete={onComplete}/>
     </div>
   );
 }
 
-function GLIM({ correctedBmi, onComplete }) {
-  const bmiMet = correctedBmi < 22;
+function AssessmentSection({title,children}) { return <section className="assessment-section"><h3>{title}</h3>{children}</section> }
+
+function GLIM({ assessment, correctedBmi, onComplete }) {
+  const weightLoss3m=((assessment.weight3m-assessment.observedWeight)/assessment.weight3m)*100;
+  const weightState=weightLoss3m>5?"yes":"no";
+  const bmiState=correctedBmi<22?"yes":"no";
+  const muscleState=assessment.muscleReduced===null?"unknown":assessment.muscleReduced?"yes":"no";
+  const intakeMet=(assessment.intakePercent<50 && assessment.intakeDays>7) || (assessment.intakePercent<100 && assessment.intakeDays>14);
+  const intakeState=intakeMet?"yes":"no";
+  const inflammationState=assessment.inflammation===null?"unknown":assessment.inflammation?"yes":"no";
+  const pheno=[weightState,bmiState,muscleState].filter(x=>x==="yes").length;
+  const aetio=[intakeState,inflammationState].filter(x=>x==="yes").length;
+  const diagnosis=pheno>=1&&aetio>=1;
+  const severeWeight=weightLoss3m>10;
+  const severeBmi=correctedBmi<20;
+  const severeMuscle=assessment.muscleReduced===true && assessment.muscleMethod!=="notMeasured";
+  const stage=diagnosis?(severeWeight||severeBmi||severeMuscle?"Stage 2 – schwer":"Stage 1 – moderat"):"Keine Einstufung";
+  const open=[];
+  if(muscleState==="unknown") open.push("Muskelmasse");
+  if(inflammationState==="unknown") open.push("Krankheitslast / Entzündung");
+
   return (
     <div className="phase-content">
-      <PhaseHeader title="4. GLIM-Diagnostik" subtitle="Alle fünf Kriterien prüfen; Schweregrad ausschließlich aus phänotypischen Kriterien ableiten."/>
+      <PhaseHeader title="4. GLIM – automatische Auswertung" subtitle="Keine erneute Dateneingabe: NutriPilot liest die zuvor erhobenen Assessmentdaten."/>
+      <div className="glim-origin"><b>Datenquelle: Ernährungsassessment</b><span>Änderungen erfolgen im Assessment und werden hier unmittelbar neu berechnet.</span></div>
       <div className="glim-grid">
         <div className="module">
           <h3>Phänotypische Kriterien</h3>
-          <Criterion state="yes" title="Gewichtsverlust" note="11 % innerhalb von 3 Monaten"/>
-          <Criterion state={bmiMet ? "yes" : "no"} title="Niedriger BMI" note={`Amputationskorrigierter BMI ${correctedBmi.toFixed(1)} kg/m²; Grenzwert bei ≥70 Jahren <22`}/>
-          <Criterion state="unknown" title="Reduzierte Muskelmasse" note="Nicht erhoben; Messmethode erforderlich"/>
+          <AutoCriterion state={weightState} title="Unbeabsichtigter Gewichtsverlust" value={`${weightLoss3m.toFixed(1)} % in 3 Monaten`} source="Assessment · Gewichtsverlauf"/>
+          <AutoCriterion state={bmiState} title="Niedriger BMI" value={`${correctedBmi.toFixed(1)} kg/m²; Grenzwert bei ≥70 Jahren <22`} source="Assessment · Anthropometrie / Amputationskorrektur"/>
+          <AutoCriterion state={muscleState} title="Reduzierte Muskelmasse" value={muscleState==="unknown"?"Nicht erhoben":assessment.muscleReduced?"Referenzwert unterschritten":"Nicht reduziert"} source={`Assessment · ${assessment.muscleMethod}`}/>
         </div>
         <div className="module">
           <h3>Ätiologische Kriterien</h3>
-          <Criterion state="yes" title="Reduzierte Aufnahme" note="<50 % des Bedarfs seit 8 Tagen"/>
-          <Criterion state="unknown" title="Beeinträchtigte Assimilation" note="Nicht dokumentiert"/>
-          <Criterion state="unknown" title="Krankheitslast / Entzündung" note="Klinisch beurteilen; CRP nur unterstützend"/>
+          <AutoCriterion state={intakeState} title="Reduzierte Nahrungsaufnahme" value={`${assessment.intakePercent} % des Bedarfs seit ${assessment.intakeDays} Tagen`} source="Assessment · Nahrungsaufnahme"/>
+          <AutoCriterion state={inflammationState} title="Krankheitslast / Entzündung" value={assessment.inflammation===null?"Noch nicht klinisch eingeordnet":assessment.inflammationNote} source="Assessment · klinische Einordnung"/>
         </div>
       </div>
-      <div className="result-panel severe"><div><b>GLIM-Systematik erfüllt</b><p>Regelbasiert Stage 2 – schwere Mangelernährung aufgrund von 11 % Gewichtsverlust in drei Monaten; fachlich zu bestätigen.</p></div><span>Stage 2</span></div>
+      <div className={`result-panel ${diagnosis?"severe":""}`}><div><b>{diagnosis?"GLIM-Systematik erfüllt":"GLIM-Systematik noch nicht erfüllt"}</b><p>{diagnosis?`Mindestens 1 phänotypisches + 1 ätiologisches Kriterium. Automatisch abgeleiteter Schweregrad: ${stage}. Fachliche Bestätigung erforderlich.`:"Erforderliche Kriterien sind noch nicht vollständig erfüllt."}</p>{open.length>0&&<p><b>Offene Erhebung:</b> {open.join(", ")}</p>}</div><span>{stage}</span></div>
+      <div className="glim-rule"><b>Warum?</b><code>Gewichtsverlust {weightLoss3m.toFixed(1)} % → {weightState==="yes"?"erfüllt":"nicht erfüllt"}</code><code>Aufnahme {assessment.intakePercent} % / {assessment.intakeDays} Tage → {intakeState==="yes"?"erfüllt":"nicht erfüllt"}</code><span>GLIM bestätigt die Systematik; Diagnose und Ursache werden durch die Fachkraft bestätigt.</span></div>
       <PhaseActions onComplete={onComplete}/>
     </div>
   );
 }
+function AutoCriterion({state,title,value,source}) { return <div className="auto-criterion"><span className={`criterion-state ${state}`}>{state==="yes"?"✓":state==="no"?"–":"?"}</span><div><b>{title}</b><strong>{value}</strong><small>{source}</small></div></div> }
 
-function Plan({ needsWeight, onComplete }) {
+function Plan({ needsWeight, assessment, onComplete }) {
   const energyLow = Math.round(needsWeight * 25);
   const energyHigh = Math.round(needsWeight * 30);
   return (
@@ -379,12 +467,12 @@ function Plan({ needsWeight, onComplete }) {
         <Metric label="Gewichtsbasis" value={`${needsWeight.toFixed(1)} kg`}/>
         <Metric label="Demo-Energiekorridor" value={`${energyLow}–${energyHigh} kcal`}/>
         <Metric label="Evaluation" value="in 48 h"/>
-        <Metric label="Status" value="Entwurf"/>
+        <Metric label="Status" value="Aus Assessment erzeugt"/>
       </div>
       <div className="module">
         <Criterion state="yes" title="Energieanreicherung" note="Ziel ≥75 % Bedarfsdeckung"/>
         <Criterion state="yes" title="Trinknahrung 2× täglich" note="Verträglichkeit überwachen"/>
-        <Criterion state="yes" title="Mahlzeitenprotokoll" note="3 Tage vollständig"/>
+        <Criterion state="yes" title="Mahlzeitenprotokoll" note={`Ausgangslage: ${assessment.intakePercent} % Bedarfsdeckung seit ${assessment.intakeDays} Tagen`}/>
         <Criterion state="unknown" title="Refeeding-Sicherheitscheck" note="Ärztliche Prüfung offen"/>
       </div>
       <PhaseActions onComplete={onComplete}/>
@@ -426,7 +514,7 @@ function Monitoring({ compact = false, onComplete }) {
   );
 }
 
-function Discharge({ onComplete }) {
+function Discharge({ assessment, correctedBmi, onComplete }) {
   return (
     <div className="phase-content">
       <PhaseHeader title="7. Entlassung & Übergabe" subtitle="Status, Maßnahmen, Gewichtsbasis und Nachsorge transparent übergeben."/>
@@ -434,7 +522,7 @@ function Discharge({ onComplete }) {
         <Field label="Status bei Entlassung"><select><option>Verbessert, weiterer Bedarf</option></select></Field>
         <Field label="Nachsorge"><select><option>Ambulante Ernährungstherapie</option></select></Field>
         <Field label="Fortzuführende Maßnahmen"><textarea defaultValue="Trinknahrung, energieangereicherte Kost, Gewichtskontrolle."/></Field>
-        <Field label="Amputationshinweis"><textarea defaultValue="Unterschenkelamputation; BMI wurde zusätzlich mit Segmentkorrektur interpretiert."/></Field>
+        <Field label="Automatisch übernommener Ernährungsstatus"><textarea readOnly value={`Aufnahme ${assessment.intakePercent} % des Bedarfs seit ${assessment.intakeDays} Tagen; korrigierter BMI ${correctedBmi.toFixed(1)} kg/m²; laufende Maßnahmen und Verlauf siehe Bericht.`}/></Field>
       </div>
       <PhaseActions onComplete={onComplete}/>
     </div>

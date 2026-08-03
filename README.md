@@ -1,45 +1,30 @@
-# NutriPilot
+# NutriPilot v0.6.0
 
-React/Vite-Konzeptprototyp für einen digitalen Arbeitsplatz in der klinischen Ernährung.
+React/Vite-Konzeptprototyp für den klinischen Ernährungsworkflow.
 
-## Funktionsumfang
+## Neu in v0.6
 
-- vollständige Patientenreise
-- Aufnahme
-- NRS-2002-Screening
-- Ernährungsassessment
-- Amputations-/Segmentkorrektur
-- GLIM-Arbeitsablauf
-- Maßnahmenplan
-- Monitoring mit Legende und Achsen
-- Entlassungs- und Übergabedokumentation
-- Qualitätsdashboard
-- Leitlinien- und Regelansicht
+- NRS-2002 vollständig zweistufig:
+  - Vorscreening mit vier Fragen
+  - Hauptscreening mit Ernährungsstatus, Krankheitsschwere und Alterszuschlag
+  - transparenter Gesamtscore
+- Assessment als zentrale Datendrehscheibe
+- GLIM ohne erneute Eingaben
+- automatische GLIM-Auswertung aus Assessmentdaten
+- transparente Quellen der einzelnen Kriterien
+- Fortschrittsanzeige und offene Datenerhebungen
+- Maßnahmen und Entlassung übernehmen Assessmentdaten
+
+## Deployment
+
+GitHub Pages wird über `.github/workflows/deploy.yml` gebaut.
+
+1. Inhalt dieses Ordners in das Repository hochladen.
+2. `Settings → Pages → Source: GitHub Actions`.
+3. Workflow abwarten.
+4. Demo öffnen:
+   `https://nnft7rhyt8-byte.github.io/nutrition-assistant-demo/`
 
 ## Klinischer Status
 
-Dieser Stand ist ein fachlich orientierter Konzeptprototyp und noch nicht klinisch validiert.
-
-Er ist:
-
-- nicht für echte Patientendaten vorgesehen
-- nicht als Medizinprodukt freigegeben
-- nicht für autonome Diagnose- oder Therapieentscheidungen bestimmt
-
-## Lokale Entwicklung
-
-```bash
-npm install
-npm run dev
-```
-
-## Produktionsbuild
-
-```bash
-npm run build
-npm run preview
-```
-
-## GitHub Pages
-
-Siehe [DEPLOYMENT.md](DEPLOYMENT.md).
+Konzeptprototyp, noch nicht klinisch validiert, nicht für echte Patientendaten oder autonome Entscheidungen.
