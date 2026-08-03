@@ -1,119 +1,84 @@
-# NutriPilot v1.2 – Explainable Therapy MVP
+# NutriPilot v1.3 – Trust, Clinical Excellence & Parenteral Nutrition
 
-Interaktive Arbeits- und Validierungsversion eines Clinical Nutrition Workspace für klinische Ernährungsfachkräfte.
+NutriPilot v1.3 ist eine interaktive Test- und Validierungsversion für den klinischen Ernährungsworkflow. Sie führt Konsil, Assessment, GLIM, transparente Therapieherleitung, Ernährungsweg, parenterale Ernährung, Monitoring, Dokumentation und Entlassung in einer Fallakte zusammen.
 
-## Leitidee von v1.2
+## Leitprinzip
 
-NutriPilot zeigt nicht nur **was** vorgeschlagen wird, sondern **warum**. Die Ernährungsfachkraft erhält direkten Zugriff auf Patientendaten, Sicherheitsbedingungen, Regelwahl, Rechenweg, medizinische Schlusskette, Quellen und Monitoringplan.
+NutriPilot behauptet nicht, dass jede lokale Produktregel eine medizinische Leitlinienempfehlung ist. In v1.3 werden Aussagen sichtbar getrennt in:
 
-> Patientendaten → Sicherheitsgate → passende Regelbasis → offener Rechenweg → medizinische Schlussfolgerung → prüfbarer Therapievorschlag → fachliche Bestätigung
+- Patientendatum
+- deterministische Berechnung
+- publizierte Leitlinienregel
+- lokaler Klinikstandard
+- NutriPilot-MVP-Regel
+- fachliche Interpretation erforderlich
+- Anwendungsgrenze
 
-## Neu in v1.2
+## Neu in v1.3
 
-### Plattformweite UX- und Responsive-Überarbeitung
+### Transparente Herleitung
 
-- Initialen und Icons in sämtlichen runden Avataren exakt horizontal und vertikal zentriert
-- vereinheitlichte Abstände, Status-Chips, Listenzeilen, Buttons und Fokuszustände
-- stabilere Arbeitslisten und Fallkarten bei langen Texten
-- responsive Therapieansicht für Desktop, Notebook, Tablet und Smartphone
-- mobile Bottom-Navigation mit direktem Zugriff auf Arbeitstag, Konsile, Neuanlage, Fälle und Suche
-- mobile Sticky-Navigation innerhalb des Patienten- und Therapie-Workspaces
-- optimierte Touch-Ziele und Safe-Area-Unterstützung
+Jeder Therapieschritt zeigt:
 
-### Nachvollziehbarer Therapie-Copilot
+1. Beobachtung und Datenstatus
+2. Regeltyp und konkrete Quelle
+3. Anwendbarkeit auf den Patienten
+4. zulässigen fachlichen Schluss
+5. Auswirkung auf Therapie oder Datenerhebung
+6. Grenze des Schlusses
 
-- direkt erreichbare **Entscheidungsgrundlage** mit Herkunft und klinischer Bedeutung jeder Information
-- Datenstatus `bestätigt`, `mit Vorbehalt` oder `offen`
-- sichtbares **Sicherheitsgate** vor quantitativer Übernahme
-- Refeeding-Kriterien einzeln einsehbar; Näherungswerte werden als solche kenntlich gemacht
-- medizinische Schlusskette in fünf Schritten:
-  1. Befunde zusammenführen
-  2. Sicherheitsgate anwenden
-  3. passende Regelbasis wählen
-  4. Interventionsstufe ableiten
-  5. Monitoring festlegen
-- vollständige Rechenwege für Gewichtsbasis, BMI, Gewichtsverlust, Energie, Protein und Flüssigkeit
-- explizite Begründung für jeden Maßnahmenblock
-- Quellenkarten mit Leitlinie, Version, Geltungsbereich und verwendeter Empfehlung
-- lokale NutriPilot-Regeln separat von externen Leitlinien ausgewiesen
-- Datenvollständigkeit statt irreführender „KI-Sicherheit“
-- Audit-Einträge enthalten Regelkontext, Quellen und Datenvollständigkeit
+### Parenterale Ernährung
 
-## Enthaltene klinische Arbeitsbereiche
+PN ist als eigener interprofessioneller Entscheidungsweg integriert:
 
-- Mein Arbeitstag als priorisierter Arbeitsvorrat
-- Konsilübersicht und Clinical Nutrition Workspace
-- acht fiktive Testpatienten
-- Neuanlage weiterer fiktiver Patienten und Konsile
-- Assessment als zentraler Datenkern
-- transparente Amputationskorrektur
-- vorbereitete GLIM-Prüfung mit fachlicher Bestätigung
-- Explainable Therapy Copilot
-- Clinical Timeline und Verlaufseinträge
-- Entlassungscheck und vorbereitete Clinical Note
-- lokale Browser-Persistenz und Migration vorhandener v1.0-/v1.1-Demodaten
-- lokaler JSON-Export und Zurücksetzen der Demodaten
+- dokumentierte GI-Funktion
+- enterale Machbarkeit und Toleranz
+- orale/enterale Bedarfsdeckung
+- PN-Indikationsstatus
+- zentrale oder periphere Zugangsorientierung
+- Refeeding-Sicherheitsprüfung
+- Glukose-, Triglyzerid-, Elektrolyt-, Organ- und Volumenstatus
+- Ernährungsteam, ärztlicher Dienst, Pharmazie und Pflege als Teamgate
+- Patientenwille und Behandlungsziel
+- progressive Startorientierung als Leitlinienhinweis
+- tägliche Prüfung von Indikation und Rückkehr zu oral/enteral
+- klinisches und laborchemisches Monitoring
 
-## Fachliche Wissensbasis im Demo-MVP
+NutriPilot berechnet keine autonome Beutelzusammensetzung, Elektrolyt-, Insulin-, Medikamenten- oder Mikronährstoffdosierung und entscheidet keinen Katheterzugang autonom.
 
-Der Regelkern nutzt ausgewählte, in der Oberfläche sichtbare Orientierungen aus:
+### Professional Excellence
 
-- DGEM S3-Leitlinie Klinische Ernährung und Hydrierung im Alter, 2025
-- ESPEN practical guideline: Clinical nutrition and hydration in geriatrics, 2022
-- ESPEN practical guideline: Clinical Nutrition in cancer, 2021
-- ESPEN practical guideline für polymorbide internistische Krankenhauspatienten, 2024
-- NICE CG32 Nutrition support for adults, zuletzt aktualisiert 2017
+- 60-Sekunden-Fallbriefing für Visite und Ernährungsteam
+- „Warum diese Strategie – warum nicht die Alternative?“
+- Änderungsvorschau ohne Änderung der Fallakte
+- Patienten- und Behandlungsziele
+- Erfolg-, Anpassungs-, Eskalations- und Abbruchkriterien
+- strukturiertes fachliches Feedback
+- Clinical-Excellence-Übersicht im Arbeitstag
+- Regel- und Quellenregister
+- Auditkontext mit Datenstand, Regelversion, Route und PN-Status
 
-Die Implementierung ist ein **validierbarer MVP-Regelkern**. Sie deckt nicht alle Diagnosen, Ein- und Ausschlusskriterien, lokalen Standards oder klinischen Sonderlagen ab.
+## Demo-Fälle
 
-## Sicherheitsprinzipien
+Die bestehenden acht Testpatienten bleiben erhalten. Zusätzlich enthält v1.3 einen neunten Testfall:
 
-- keine erfundenen Patientendaten
-- keine autonome Diagnose- oder Therapieentscheidung
-- quantitative Übernahme wird bei kritischen Datenlücken blockiert
-- fehlende Organfunktion oder Flüssigkeitsbesonderheiten werden sichtbar gemacht
-- bei Adipositas mit Mangelernährungsrisiko keine scheinpräzise kg-basierte Automatik
-- Parenteralia, Medikamenten- und Elektrolytdosierungen, Pädiatrie und komplexe Intensivtherapie sind ausgeschlossen
-- jede Empfehlung muss von einer Ernährungsfachkraft geprüft und bestätigt werden
+- **Monika Weber:** postoperativer Ileus, nicht funktioneller Gastrointestinaltrakt und interprofessionell vorbereitete parenterale Ernährung.
 
-## Wichtige Grenze dieser Version
+## Datenspeicherung
 
-Diese GitHub-Pages-Version ist eine interaktive Test- und Validierungsversion, **kein klinisches Produktionssystem**. Sie speichert Daten ausschließlich im Browser und ist öffentlich erreichbar. Ausschließlich fiktive Testdaten verwenden.
+Die Anwendung speichert ausschließlich lokal im Browser (`localStorage`). Neue fiktive Patienten können aufgenommen und bestehende Testfälle bearbeitet werden.
 
-Die als KI-gestützt beschriebene Erklärung wird in diesem öffentlichen MVP lokal und reproduzierbar aus strukturierten Daten, Berechnungen und Regeln erzeugt. Es wird kein externes generatives KI-Modell mit Patientendaten aufgerufen.
+## Wichtiger Status
 
-## Für echte Patientendaten erforderlich
+Diese Version ist ein UX- und Clinical-Decision-Support-MVP zur fachlichen Validierung. Sie ist nicht für echte Patientendaten, autonome Diagnosen, autonome Therapieentscheidungen oder die klinische Verordnung parenteraler Ernährung freigegeben.
 
-- geschützte Anmeldung, Rollen und Rechte
-- serverseitige Datenbank und verschlüsselte Übertragung
-- Mandanten- und Krankenhauskonzept
-- vollständiger, revisionssicherer Audit Trail
-- Backup-, Lösch- und Aufbewahrungskonzept
-- Datenschutz- und Informationssicherheitsprüfung
-- vollständig versioniertes und klinisch freigegebenes Regelwerk
-- Risikomanagement und Prüfung der Medizinprodukte-Eigenschaft
-- Schnittstellen zur Krankenhaus-IT
-- geschützter KI-Service ohne API-Schlüssel im Browser
-
-## GitHub Pages
-
-Repository: `nnft7rhyt8-byte/nutrition-assistant-demo`
-
-Nach Upload auf `main` startet `.github/workflows/deploy.yml` automatisch.
-
-Demo-URL:
-
-`https://nnft7rhyt8-byte.github.io/nutrition-assistant-demo/`
-
-## Lokal testen
+## Start
 
 ```bash
 npm install
 npm run dev
 ```
 
-Produktionsbuild:
+## GitHub Pages
 
-```bash
-npm run build
-```
+Der vorhandene Workflow unter `.github/workflows/deploy.yml` baut und veröffentlicht die Anwendung bei einem Push auf `main`.

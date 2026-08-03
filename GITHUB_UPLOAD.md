@@ -1,48 +1,28 @@
-# NutriPilot v1.2 auf GitHub Pages aktualisieren
+# NutriPilot v1.3 in GitHub hochladen
 
-## Einfacher Web-Upload
+## Updatepaket
 
-Im Repository `nnft7rhyt8-byte/nutrition-assistant-demo`:
+Im bestehenden Repository `nutrition-assistant-demo` über **Add file → Upload files** hochladen:
 
-1. `Add file` → `Upload files`
-2. Aus dem Update-Paket gemeinsam hochladen:
-   - `src`
-   - `index.html`
-   - `package.json`
-   - `vite.config.js`
-   - `README.md`
-   - `V1_2_CLINICAL_RULES.md`
-   - `V1_2_TESTREPORT.md`
-3. Vorhandene Dateien ersetzen lassen.
-4. Die alte Datei `V1_1_CLINICAL_RULES.md` im Repository bei Bedarf löschen.
-5. Commit-Nachricht: `NutriPilot v1.2 Explainable Therapy`
-6. `Commit changes`
-7. Unter `Actions` den Workflow `Deploy NutriPilot to GitHub Pages` abwarten.
+- `src/`
+- `index.html`
+- `package.json`
+- `vite.config.js`
+- `README.md`
+- `V1_3_CLINICAL_RULES.md`
+- `V1_3_PARENTERAL_NUTRITION.md`
+- `V1_3_TESTREPORT.md`
 
-Die vorhandene `.github/workflows/deploy.yml` muss beim Update nicht erneut hochgeladen werden.
+Anschließend **Commit changes** wählen. Der bestehende GitHub-Actions-Workflow veröffentlicht die Demo automatisch.
 
-Demo nach erfolgreichem Deploy:
+## Demo-Adresse
 
 `https://nnft7rhyt8-byte.github.io/nutrition-assistant-demo/`
 
-## Empfohlene Abnahme
+## Nach dem Deployment prüfen
 
-### Layout
-
-- Desktop: Initialen in allen Avataren zentriert
-- Notebook: Arbeitsliste ohne Überlappungen
-- Tablet Hoch-/Querformat: Workspace ohne abgeschnittene Inhalte
-- Smartphone: Bottom-Navigation, Sticky-Tabs, keine horizontale Seitenscrollleiste
-
-### Therapie-Copilot
-
-- Maria Schmidt: Schlucksicherheit blockiert die Übernahme
-- Hans Becker: Refeeding-Sicherheitsstopp wegen offener Elektrolyte
-- Eva Koch: onkologischer Zielkorridor und Herleitung sichtbar
-- Ali Demir: Amputationskorrektur muss bestätigt werden
-- Petra Lang: Dysphagiehinweis und bestätigte Kostform sichtbar
-- Jürgen Wolf: fehlender Schluckplan blockiert
-- Lena Müller: onkologischer Entlassungskontext
-- Sabine Krämer: keine scheinpräzise kg-Automatik bei Adipositas/Mangelernährungsrisiko
-
-Ausschließlich fiktive Testdaten verwenden.
+1. Browserdaten/Demo zurücksetzen, damit das v1.3-Datenschema geladen wird.
+2. Monika Weber öffnen und den Bereich Therapie aufrufen.
+3. PN-Indikationsprüfung, Teamgate, Versorgungslücke, Routenalternativen und Monitoring prüfen.
+4. Smartphone- und Tabletansicht testen.
+5. Ausschließlich fiktive Testdaten verwenden.
