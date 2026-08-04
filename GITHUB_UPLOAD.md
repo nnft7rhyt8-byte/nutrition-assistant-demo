@@ -1,4 +1,4 @@
-# NutriPilot v1.3 in GitHub hochladen
+# NutriPilot v1.4 auf GitHub Pages aktualisieren
 
 ## Updatepaket
 
@@ -9,20 +9,22 @@ Im bestehenden Repository `nutrition-assistant-demo` über **Add file → Upload
 - `package.json`
 - `vite.config.js`
 - `README.md`
-- `V1_3_CLINICAL_RULES.md`
-- `V1_3_PARENTERAL_NUTRITION.md`
-- `V1_3_TESTREPORT.md`
+- `V1_4_THERAPY_PLAN.md`
+- optional `design/`
 
-Anschließend **Commit changes** wählen. Der bestehende GitHub-Actions-Workflow veröffentlicht die Demo automatisch.
+Vorhandene Dateien ersetzen und anschließend **Commit changes** wählen.
 
-## Demo-Adresse
-
-`https://nnft7rhyt8-byte.github.io/nutrition-assistant-demo/`
+Der bereits vorhandene GitHub-Actions-Workflow baut und veröffentlicht die App automatisch.
 
 ## Nach dem Deployment prüfen
 
-1. Browserdaten/Demo zurücksetzen, damit das v1.3-Datenschema geladen wird.
-2. Monika Weber öffnen und den Bereich Therapie aufrufen.
-3. PN-Indikationsprüfung, Teamgate, Versorgungslücke, Routenalternativen und Monitoring prüfen.
-4. Smartphone- und Tabletansicht testen.
-5. Ausschließlich fiktive Testdaten verwenden.
+1. Seitenleiste enthält **Therapiepläne**.
+2. Auf Mobilgeräten ist **Therapie** in der unteren Navigation sichtbar.
+3. Ein Fall öffnet den Tab **Therapieplan**.
+4. Der empfohlene Plan steht als erster großer Block oben.
+5. **PDF / Drucken** öffnet die A4-Druckansicht.
+6. **Therapieplan-Datei** lädt eine HTML-Datei herunter.
+7. **Clinical Note** kopiert den Plan oder lädt bei fehlender Clipboard-Berechtigung eine Textdatei.
+8. Die Entscheidungsgrundlage ist mit einem Klick erreichbar.
+
+Keine echten Patientendaten in die öffentliche Demo eingeben.

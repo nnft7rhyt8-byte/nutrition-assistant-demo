@@ -1,76 +1,24 @@
-# NutriPilot v1.3 – Trust, Clinical Excellence & Parenteral Nutrition
+# NutriPilot v1.4 – Therapieplan & Export
 
-NutriPilot v1.3 ist eine interaktive Test- und Validierungsversion für den klinischen Ernährungsworkflow. Sie führt Konsil, Assessment, GLIM, transparente Therapieherleitung, Ernährungsweg, parenterale Ernährung, Monitoring, Dokumentation und Entlassung in einer Fallakte zusammen.
+Lauffähige React/Vite-MVP-Version des Clinical Nutrition Workspace.
 
-## Leitprinzip
+## Kernänderungen v1.4
 
-NutriPilot behauptet nicht, dass jede lokale Produktregel eine medizinische Leitlinienempfehlung ist. In v1.3 werden Aussagen sichtbar getrennt in:
-
-- Patientendatum
-- deterministische Berechnung
-- publizierte Leitlinienregel
-- lokaler Klinikstandard
-- NutriPilot-MVP-Regel
-- fachliche Interpretation erforderlich
-- Anwendungsgrenze
-
-## Neu in v1.3
-
-### Transparente Herleitung
-
-Jeder Therapieschritt zeigt:
-
-1. Beobachtung und Datenstatus
-2. Regeltyp und konkrete Quelle
-3. Anwendbarkeit auf den Patienten
-4. zulässigen fachlichen Schluss
-5. Auswirkung auf Therapie oder Datenerhebung
-6. Grenze des Schlusses
-
-### Parenterale Ernährung
-
-PN ist als eigener interprofessioneller Entscheidungsweg integriert:
-
-- dokumentierte GI-Funktion
-- enterale Machbarkeit und Toleranz
-- orale/enterale Bedarfsdeckung
-- PN-Indikationsstatus
-- zentrale oder periphere Zugangsorientierung
-- Refeeding-Sicherheitsprüfung
-- Glukose-, Triglyzerid-, Elektrolyt-, Organ- und Volumenstatus
-- Ernährungsteam, ärztlicher Dienst, Pharmazie und Pflege als Teamgate
-- Patientenwille und Behandlungsziel
-- progressive Startorientierung als Leitlinienhinweis
-- tägliche Prüfung von Indikation und Rückkehr zu oral/enteral
-- klinisches und laborchemisches Monitoring
-
-NutriPilot berechnet keine autonome Beutelzusammensetzung, Elektrolyt-, Insulin-, Medikamenten- oder Mikronährstoffdosierung und entscheidet keinen Katheterzugang autonom.
-
-### Professional Excellence
-
-- 60-Sekunden-Fallbriefing für Visite und Ernährungsteam
-- „Warum diese Strategie – warum nicht die Alternative?“
-- Änderungsvorschau ohne Änderung der Fallakte
-- Patienten- und Behandlungsziele
-- Erfolg-, Anpassungs-, Eskalations- und Abbruchkriterien
-- strukturiertes fachliches Feedback
-- Clinical-Excellence-Übersicht im Arbeitstag
-- Regel- und Quellenregister
-- Auditkontext mit Datenstand, Regelversion, Route und PN-Status
-
-## Demo-Fälle
-
-Die bestehenden acht Testpatienten bleiben erhalten. Zusätzlich enthält v1.3 einen neunten Testfall:
-
-- **Monika Weber:** postoperativer Ileus, nicht funktioneller Gastrointestinaltrakt und interprofessionell vorbereitete parenterale Ernährung.
-
-## Datenspeicherung
-
-Die Anwendung speichert ausschließlich lokal im Browser (`localStorage`). Neue fiktive Patienten können aufgenommen und bestehende Testfälle bearbeitet werden.
+- Therapieplan ist als zentrales Arbeitsergebnis hervorgehoben.
+- Eigener globaler Bereich **Therapiepläne** für alle offenen und aktiven Pläne.
+- Im Patientenfall heißt der Hauptbereich nun **Therapieplan**.
+- Empfohlene Therapie, Zielwerte, Route, priorisierte Maßnahmen und Reevaluation stehen sofort oben.
+- Direkter Zugriff auf Entscheidungsgrundlage, Sicherheitsgate, medizinische Herleitung, Rechenweg und Quellen.
+- Professioneller Therapieplan-Export:
+  - druckoptimierte A4-Ansicht / PDF über den Browser,
+  - eigenständige HTML-Therapieplandatei,
+  - Clinical Note als Zwischenablage oder Textdatei.
+- Export enthält medizinische Entscheidungsgrundlage, Quellen, Erfolgskriterien, Anpassungs- und Eskalationsregeln.
+- Therapieansicht nutzt die volle Arbeitsbreite; Desktop-, Tablet- und Mobilansicht wurden ergänzt.
 
 ## Wichtiger Status
 
-Diese Version ist ein UX- und Clinical-Decision-Support-MVP zur fachlichen Validierung. Sie ist nicht für echte Patientendaten, autonome Diagnosen, autonome Therapieentscheidungen oder die klinische Verordnung parenteraler Ernährung freigegeben.
+Test- und Validierungsversion. Keine echten Patientendaten in die öffentliche GitHub-Pages-Demo eingeben. Empfehlungen sind fachlich zu prüfen und zu bestätigen.
 
 ## Start
 
@@ -79,6 +27,8 @@ npm install
 npm run dev
 ```
 
-## GitHub Pages
+## Build
 
-Der vorhandene Workflow unter `.github/workflows/deploy.yml` baut und veröffentlicht die Anwendung bei einem Push auf `main`.
+```bash
+npm run build
+```

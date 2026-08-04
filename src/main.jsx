@@ -41,9 +41,9 @@ import {
 } from "lucide-react";
 import "./styles.css";
 
-const STORAGE_KEY = "nutripilot-v1.3-patients";
-const LEGACY_STORAGE_KEYS = ["nutripilot-v1.2.1-patients", "nutripilot-v1.2-patients", "nutripilot-v1.1-patients", "nutripilot-v1-patients"];
-const APP_VERSION = "v1.3 Trust, Excellence & PN";
+const STORAGE_KEY = "nutripilot-v1.4-patients";
+const LEGACY_STORAGE_KEYS = ["nutripilot-v1.3-patients", "nutripilot-v1.2.1-patients", "nutripilot-v1.2-patients", "nutripilot-v1.1-patients", "nutripilot-v1-patients"];
+const APP_VERSION = "v1.4 Therapieplan & Export";
 
 
 const GUIDELINES = {
@@ -1194,6 +1194,95 @@ function recommendationMonitoringText(recommendation) {
     .join("\n");
 }
 
+
+function safeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function therapyPlanHeadline(recommendation) {
+  if (recommendation.blocked) return "Sicherheitsvoraussetzungen klären, bevor der Therapieplan aktiviert wird.";
+  const route = String(recommendation.routeDecision?.label || "").toLowerCase();
+  if (route.includes("parenter")) return "Parenterale Ernährung interprofessionell planen und die Versorgungslücke sicher schließen.";
+  if (route.includes("enteral")) return "Enterale Ernährung bedarfsgerecht aufbauen und engmaschig reevaluieren.";
+  if (route.includes("komb")) return "Kombinierte Ernährungstherapie zielgerichtet aufbauen und täglich anpassen.";
+  return "Orale Ernährung optimieren, proteinreich fortifizieren und die Zielerreichung aktiv überwachen.";
+}
+
+function therapyPlanStatus(patient, recommendation) {
+  if (recommendation.blocked) return "Nicht freigabefähig";
+  if (patient.therapy.confirmed) return "Fachlich bestätigt";
+  if (["accepted", "adapted"].includes(patient.therapy.recommendationStatus)) return "In fachlicher Bearbeitung";
+  return "Fachlich zu prüfen";
+}
+
+function therapyPlanText(patient, recommendation) {
+  const therapy = patient.therapy || {};
+  const energy = therapy.energyGoal || recommendation.selected.energy || "individuell";
+  const protein = therapy.proteinGoal || recommendation.selected.protein || "individuell";
+  const fluid = therapy.fluidGoal || recommendation.selected.fluid || "individuell";
+  const measures = therapy.measures || recommendationMeasuresText(recommendation);
+  const monitoring = therapy.monitoringPlan || recommendationMonitoringText(recommendation);
+  const sources = recommendation.sources.map((source) => `${source.id} (${source.version})`).join(", ") || "individuelle fachliche Festlegung";
+  return `NUTRIPILOT THERAPIEPLAN\n\nPatient: ${fullName(patient)}\nPatientennummer: ${patient.patientNumber}\nStation/Zimmer: ${patient.station} / ${patient.room}\nStatus: ${therapyPlanStatus(patient, recommendation)}\nErstellt: ${new Date().toLocaleString("de-DE")}\n\nEMPFOHLENE THERAPIE\n${therapyPlanHeadline(recommendation)}\n\nTHERAPIEZIELE\nEnergie: ${energy} kcal/Tag\nProtein: ${protein} g/Tag\nFlüssigkeit: ${fluid} ml/Tag\nErnährungsweg: ${therapy.routeDecision || recommendation.routeDecision.label}\n\nMASSNAHMEN\n${measures}\n\nMONITORING UND REEVALUATION\n${monitoring}\nNächste Prüfung: ${formatDate(therapy.nextReview || recommendation.recommendedReviewDate)}\n\nERFOLGSKRITERIEN\n${therapy.successCriteria || "Vor fachlicher Bestätigung konkret festlegen."}\n\nANPASSUNGSKRITERIEN\n${therapy.adaptationCriteria || "Bei Unverträglichkeit, metabolischer Auffälligkeit oder Zielverfehlung neu bewerten."}\n\nESKALATIONS-/ABBRUCHKRITERIEN\n${therapy.escalationCriteria || "Bei Nichterreichen, klinischer Verschlechterung oder Sicherheitsereignissen Route neu bewerten."}\n\nENTSCHEIDUNGSGRUNDLAGE\n${recommendation.explanation}\nDatenbasis: ${recommendation.decisionCompleteness} % (${recommendation.dataQuality})\nRegelkontext: ${recommendation.ruleLabel}\n\nQUELLEN\n${sources}\n\nHinweis: Durch eine Ernährungsfachkraft zu prüfen und zu bestätigen. Keine autonome Therapieentscheidung.`;
+}
+
+function therapyPlanHtml(patient, recommendation) {
+  const therapy = patient.therapy || {};
+  const energy = therapy.energyGoal || recommendation.selected.energy || "individuell";
+  const protein = therapy.proteinGoal || recommendation.selected.protein || "individuell";
+  const fluid = therapy.fluidGoal || recommendation.selected.fluid || "individuell";
+  const route = therapy.routeDecision || recommendation.routeDecision.label;
+  const groups = recommendation.measures.map((group, index) => `
+    <section class="measure"><div class="number">${index + 1}</div><div><h3>${safeHtml(group.title.replace(/^Priorität \d+ · /, ""))}</h3><p>${safeHtml(group.items.join(" "))}</p><small><b>Begründung:</b> ${safeHtml(group.why)}<br><b>Regel:</b> ${safeHtml(group.rule)}<br><b>Reevaluation:</b> ${safeHtml(group.reassess)}</small></div></section>`).join("");
+  const sourceList = recommendation.sources.map((source) => `<li><b>${safeHtml(source.id)}</b> · ${safeHtml(source.title)} · ${safeHtml(source.version)}</li>`).join("") || "<li>Individuelle fachliche Festlegung</li>";
+  const evidence = recommendation.evidence.slice(0, 10).map((item) => `<tr><td>${safeHtml(item.label)}</td><td>${safeHtml(item.value)}</td><td>${safeHtml(item.statusLabel || item.status || "")}</td><td>${safeHtml(item.source || "Assessment")}</td></tr>`).join("");
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Therapieplan ${safeHtml(fullName(patient))}</title><style>
+  @page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;color:#17283c;margin:0;font-size:10.5pt;line-height:1.45}.header{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #0b3558;padding-bottom:14px;margin-bottom:18px}.brand{font-size:22px;font-weight:800;color:#0b3558}.brand small{display:block;font-size:9px;font-weight:600;color:#658096;letter-spacing:.08em;text-transform:uppercase}.meta{text-align:right;font-size:9px;color:#566a7e}.hero{border:1px solid #a9c8df;border-radius:12px;padding:18px;background:#f5faff;margin-bottom:14px}.eyebrow{text-transform:uppercase;letter-spacing:.1em;font-size:8px;font-weight:800;color:#53728a}.hero h1{font-size:19px;line-height:1.2;margin:5px 0}.status{display:inline-block;padding:5px 9px;border-radius:999px;background:#fff1d7;color:#8b5b08;font-size:8px;font-weight:800}.targets{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}.target{border:1px solid #dce7ef;border-radius:9px;padding:10px}.target small,.target b{display:block}.target small{font-size:7.5px;color:#718294;text-transform:uppercase}.target b{font-size:11px;margin-top:4px}.measure{display:grid;grid-template-columns:28px 1fr;gap:9px;border-bottom:1px solid #e4ebf0;padding:10px 0;break-inside:avoid}.number{width:25px;height:25px;border-radius:7px;background:#e8f3fa;color:#0b527f;display:flex;align-items:center;justify-content:center;font-weight:800}.measure h3{font-size:11px;margin:0 0 3px}.measure p{margin:0 0 4px}.measure small{font-size:8px;color:#607386}.section-title{font-size:13px;color:#0b3558;margin:18px 0 6px}.monitor{border:1px solid #dce7ef;border-radius:10px;padding:12px;background:#fbfcfd}.basis{border-left:4px solid #2a936c;padding:10px 12px;background:#f1faf6}.basis p{margin:4px 0}.table{width:100%;border-collapse:collapse;font-size:8px;margin-top:8px}.table th,.table td{border:1px solid #dfe7ed;padding:6px;text-align:left;vertical-align:top}.table th{background:#eef5f9}.footer{margin-top:20px;padding-top:10px;border-top:1px solid #dbe4ea;font-size:8px;color:#718294}.signature{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:36px}.signature div{border-top:1px solid #718294;padding-top:5px;font-size:8px}@media print{button{display:none}}
+  </style></head><body>
+  <header class="header"><div class="brand">NutriPilot<small>Clinical Nutrition · Therapieplan</small></div><div class="meta">${safeHtml(fullName(patient))}<br>${safeHtml(patient.patientNumber)} · ${safeHtml(patient.station)} · Zimmer ${safeHtml(patient.room)}<br>Erstellt ${safeHtml(new Date().toLocaleString("de-DE"))}</div></header>
+  <section class="hero"><span class="eyebrow">Empfohlener Therapieplan</span><h1>${safeHtml(therapyPlanHeadline(recommendation))}</h1><span class="status">${safeHtml(therapyPlanStatus(patient, recommendation))}</span><div class="targets"><div class="target"><small>Energie</small><b>${safeHtml(energy)} kcal/Tag</b></div><div class="target"><small>Protein</small><b>${safeHtml(protein)} g/Tag</b></div><div class="target"><small>Flüssigkeit</small><b>${safeHtml(fluid)} ml/Tag</b></div><div class="target"><small>Ernährungsweg</small><b>${safeHtml(route)}</b></div></div></section>
+  <h2 class="section-title">Priorisierte Maßnahmen</h2>${groups}
+  <h2 class="section-title">Monitoring und Reevaluation</h2><section class="monitor"><b>Nächste fachliche Prüfung: ${safeHtml(formatDate(therapy.nextReview || recommendation.recommendedReviewDate))}</b><p>${safeHtml(therapy.monitoringPlan || recommendationMonitoringText(recommendation))}</p><p><b>Erfolg:</b> ${safeHtml(therapy.successCriteria || "Vor Bestätigung konkret festlegen.")}</p><p><b>Anpassung:</b> ${safeHtml(therapy.adaptationCriteria || "Bei Zielverfehlung oder Unverträglichkeit neu bewerten.")}</p><p><b>Eskalation/Abbruch:</b> ${safeHtml(therapy.escalationCriteria || "Bei Sicherheitsereignis oder klinischer Verschlechterung Route neu bewerten.")}</p></section>
+  <h2 class="section-title">Medizinische Entscheidungsgrundlage</h2><section class="basis"><p><b>Fachlicher Schluss:</b> ${safeHtml(recommendation.explanation)}</p><p><b>Regelkontext:</b> ${safeHtml(recommendation.ruleLabel)} · ${safeHtml(recommendation.ruleReason)}</p><p><b>Datenqualität:</b> ${safeHtml(String(recommendation.decisionCompleteness))} % · ${safeHtml(recommendation.dataQuality)}</p></section>
+  <table class="table"><thead><tr><th>Parameter</th><th>Wert</th><th>Status</th><th>Quelle</th></tr></thead><tbody>${evidence}</tbody></table>
+  <h2 class="section-title">Quellen</h2><ul>${sourceList}</ul>
+  <div class="signature"><div>Ernährungsfachkraft / Datum</div><div>Ärztliche / interprofessionelle Freigabe, falls erforderlich</div></div>
+  <footer class="footer">NutriPilot ${safeHtml(APP_VERSION)} · Dieser Plan ist eine fachlich zu prüfende Entscheidungsunterstützung und keine autonome Therapieentscheidung.</footer>
+  </body></html>`;
+}
+
+function downloadTextFile(filename, content, type = "text/plain;charset=utf-8") {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function printTherapyPlan(patient, recommendation) {
+  const popup = window.open("", "_blank");
+  if (!popup) return false;
+  popup.document.open();
+  popup.document.write(therapyPlanHtml(patient, recommendation));
+  popup.document.close();
+  popup.focus();
+  window.setTimeout(() => popup.print(), 350);
+  return true;
+}
+
+function therapyPlanSlug(patient) {
+  return `${patient.lastName || "patient"}-${patient.firstName || ""}-${isoDate()}`.toLowerCase().replace(/[^a-z0-9äöüß-]+/gi, "-");
+}
+
 function App() {
   const [patients, setPatients] = useState(() => {
     try {
@@ -1320,6 +1409,7 @@ function App() {
           {view === "today" && <TodayDashboard patients={patients} openPatient={openPatient} onAdd={() => setShowNewPatient(true)} />}
           {view === "consults" && <ConsultsView patients={patients} openPatient={openPatient} query={query} />}
           {view === "patients" && <PatientsView patients={patients} openPatient={openPatient} query={query} onAdd={() => setShowNewPatient(true)} />}
+          {view === "therapyPlans" && <TherapyPlansView patients={patients} openPatient={openPatient} query={query} />}
           {view === "search" && <SearchView patients={patients} openPatient={openPatient} query={query} setQuery={setQuery} />}
           {view === "rules" && <RulesRegistry />}
           {view === "workspace" && activePatient && (
@@ -1354,7 +1444,7 @@ function MobileNav({ view, navigate, onAdd }) {
       <NavButton id="consults" icon={ClipboardList} label="Konsile" />
       <button className="mobile-add" onClick={onAdd} aria-label="Neuen Patienten aufnehmen"><Plus size={21} /><span>Neu</span></button>
       <NavButton id="patients" icon={Users} label="Fälle" />
-      <NavButton id="search" icon={Search} label="Suche" />
+      <NavButton id="therapyPlans" icon={Utensils} label="Therapie" />
     </nav>
   );
 }
@@ -1364,6 +1454,7 @@ function Sidebar({ view, navigate }) {
     ["today", CalendarDays, "Mein Arbeitstag"],
     ["consults", ClipboardList, "Konsile"],
     ["patients", Users, "Ernährungsfälle"],
+    ["therapyPlans", Utensils, "Therapiepläne"],
     ["search", Search, "Suche"],
     ["rules", BookOpen, "Regel- & Quellenregister"],
   ];
@@ -1398,6 +1489,7 @@ function Topbar({ view, query, setQuery, onAdd, onExport }) {
     today: "Mein Arbeitstag",
     consults: "Konsile",
     patients: "Ernährungsfälle",
+    therapyPlans: "Therapiepläne",
     search: "Suche",
     rules: "Regel- & Quellenregister",
     workspace: "Clinical Nutrition Workspace",
@@ -1537,6 +1629,36 @@ function PatientsView({ patients, openPatient, query, onAdd }) {
   );
 }
 
+
+function TherapyPlansView({ patients, openPatient, query }) {
+  const filtered = filterPatients(patients, query).filter((patient) => !patient.discharge.completed);
+  const confirmed = filtered.filter((patient) => patient.therapy.confirmed).length;
+  const ready = filtered.filter((patient) => {
+    const recommendation = therapyRecommendation(patient);
+    return !recommendation.blocked && !patient.therapy.confirmed;
+  }).length;
+  return (
+    <div className="therapy-plans-page">
+      <section className="therapy-plans-intro panel">
+        <div><span className="eyebrow">Zentrales Arbeitsergebnis</span><h2>Empfohlene und aktive Therapiepläne</h2><p>Jeder Fall führt zu einem prüfbaren Plan mit Zielwerten, Maßnahmen, medizinischer Herleitung, Monitoring und Export.</p></div>
+        <div className="therapy-plan-kpis"><span><b>{filtered.length}</b> aktive Fälle</span><span><b>{ready}</b> prüfbereit</span><span><b>{confirmed}</b> bestätigt</span></div>
+      </section>
+      <div className="therapy-plan-card-grid">
+        {filtered.map((patient) => {
+          const recommendation = therapyRecommendation(patient);
+          const therapy = patient.therapy;
+          return <button className={`therapy-plan-card ${recommendation.blocked ? "blocked" : therapy.confirmed ? "confirmed" : "draft"}`} key={patient.id} onClick={() => openPatient(patient, "therapy")}>
+            <div className="therapy-plan-card-head"><Avatar patient={patient} /><div><b>{fullName(patient)}</b><span>{patient.station} · Zimmer {patient.room}</span></div><StatusBadge status={therapyPlanStatus(patient, recommendation)} /></div>
+            <h3>{therapyPlanHeadline(recommendation)}</h3>
+            <div className="therapy-plan-mini-targets"><span><small>Energie</small><b>{therapy.energyGoal || recommendation.selected.energy || "individuell"}</b></span><span><small>Protein</small><b>{therapy.proteinGoal || recommendation.selected.protein || "individuell"}</b></span><span><small>Route</small><b>{therapy.routeDecision || recommendation.routeDecision.label}</b></span></div>
+            <div className="therapy-plan-card-footer"><span>Datenbasis {recommendation.decisionCompleteness} %</span><span>Plan öffnen <ChevronRight size={15} /></span></div>
+          </button>;
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SearchView({ patients, openPatient, query, setQuery }) {
   const filtered = filterPatients(patients, query);
   return (
@@ -1565,7 +1687,7 @@ function PatientWorkspace({ patient, tab, setTab, back, updatePatient, notify })
     ["overview", "Fallüberblick"],
     ["assessment", "Assessment"],
     ["glim", "GLIM"],
-    ["therapy", "Therapie"],
+    ["therapy", "Therapieplan"],
     ["timeline", "Verlauf"],
     ["discharge", "Entlassung"],
   ];
@@ -1588,7 +1710,7 @@ function PatientWorkspace({ patient, tab, setTab, back, updatePatient, notify })
         {tabs.map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}
       </nav>
 
-      <div className="workspace-layout">
+      <div className={`workspace-layout ${tab === "therapy" ? "therapy-wide" : ""}`}>
         <section className="workspace-content">
           {tab === "overview" && <CaseOverview patient={patient} metrics={metrics} setTab={setTab} />}
           {tab === "assessment" && <AssessmentEditor patient={patient} updatePatient={updatePatient} setTab={setTab} />}
@@ -1597,7 +1719,7 @@ function PatientWorkspace({ patient, tab, setTab, back, updatePatient, notify })
           {tab === "timeline" && <TimelineWorkspace patient={patient} updatePatient={updatePatient} />}
           {tab === "discharge" && <DischargeWorkspace patient={patient} updatePatient={updatePatient} />}
         </section>
-        <aside className="workspace-aside"><CopilotPanel patient={patient} tab={tab} metrics={metrics} setTab={setTab} /></aside>
+        {tab !== "therapy" && <aside className="workspace-aside"><CopilotPanel patient={patient} tab={tab} metrics={metrics} setTab={setTab} /></aside>}
       </div>
     </div>
   );
@@ -1845,16 +1967,54 @@ function TherapyWorkspace({ patient, updatePatient, notify, setTab }) {
   const statusLabel = recommendation.blocked ? "Sicherheits-/Teamstopp" : t.confirmed ? "Fachlich bestätigt" : t.recommendationStatus === "accepted" ? "Entwurf übernommen" : t.recommendationStatus === "adapted" ? "Fachlich angepasst" : t.recommendationStatus === "rejected" ? "Abgelehnt" : "Vorschlag zur Prüfung";
 
   return <div className="stack therapy-copilot-workspace">
-    <section className="panel therapy-copilot-hero">
-      <div className="therapy-copilot-head"><div><span className="eyebrow">Patientendatum → Regeltyp → Anwendbarkeit → fachlicher Schluss → Auswirkung</span><h2>Transparente Herleitung des Therapievorschlags</h2><p>NutriPilot trennt publizierte Leitlinien, deterministische Berechnungen, lokale Standards und noch zu validierende MVP-Regeln. Die Fachkraft sieht jederzeit, wo die Evidenz endet und ihre professionelle Entscheidung beginnt.</p><div className="therapy-hero-actions"><button className="primary-button" onClick={() => jumpTo("therapy-basis")}><Database size={16} /> Entscheidungsgrundlage</button><button className="secondary-button" onClick={() => jumpTo("therapy-route")}><GitBranch size={16} /> Ernährungsweg & PN</button><button className="secondary-button" onClick={() => jumpTo("therapy-calculations")}><Calculator size={16} /> Rechenweg</button></div></div><div className={`recommendation-status ${recommendation.blocked ? "blocked" : t.confirmed ? "confirmed" : "draft"}`}><span>Status</span><b>{statusLabel}</b><small>Datenbasis: {recommendation.decisionCompleteness} % · {recommendation.dataQuality}</small><em>{recommendation.reviewLevel}</em></div></div>
-      <div className="ai-summary-card"><span className="ai-summary-icon"><Sparkles size={21} /></span><div><b>Prüfbare Zusammenfassung</b><p>{recommendation.explanation}</p><small>Keine fehlenden Werte werden erfunden. PN-Mengen sind ausschließlich Planungsorientierungen und keine Verordnung.</small></div></div>
+    <section className={`panel therapy-plan-primary ${recommendation.blocked ? "blocked" : t.confirmed ? "confirmed" : "draft"}`}>
+      <div className="therapy-plan-primary-head">
+        <span className="therapy-plan-primary-icon"><Sparkles size={22} /></span>
+        <div className="therapy-plan-primary-title"><span className="eyebrow">Empfohlener Therapieplan</span><h2>{therapyPlanHeadline(recommendation)}</h2><p>{recommendation.explanation}</p></div>
+        <div className={`recommendation-status ${recommendation.blocked ? "blocked" : t.confirmed ? "confirmed" : "draft"}`}><span>Status</span><b>{statusLabel}</b><small>Datenbasis: {recommendation.decisionCompleteness} % · {recommendation.dataQuality}</small><em>{recommendation.reviewLevel}</em></div>
+      </div>
+
+      <div className="therapy-plan-goals" aria-label="Therapieziele">
+        <PlanGoal label="Zielkorridor Energie" value={`${t.energyGoal || recommendation.selected.energy || "individuell"} kcal/Tag`} tone="energy" />
+        <PlanGoal label="Zielkorridor Protein" value={`${t.proteinGoal || recommendation.selected.protein || "individuell"} g/Tag`} tone="protein" />
+        <PlanGoal label="Flüssigkeitsplan" value={`${t.fluidGoal || recommendation.selected.fluid || "individuell"} ml/Tag`} tone="fluid" />
+        <PlanGoal label="Ernährungsweg" value={t.routeDecision || recommendation.routeDecision.label} tone="route" />
+        <PlanGoal label="Reevaluation" value={formatDate(t.nextReview || recommendation.recommendedReviewDate)} tone="review" />
+      </div>
+
+      <div className="therapy-plan-primary-grid">
+        <section className="therapy-plan-actions-preview">
+          <div className="therapy-plan-subhead"><div><span className="eyebrow">Empfohlene Maßnahmen</span><h3>Priorisiert und direkt ausführbar</h3></div><button className="text-button" onClick={() => jumpTo("therapy-plan")}>Alle Details <ChevronRight size={14} /></button></div>
+          {recommendation.measures.map((group, index) => <button className="therapy-plan-action-row" key={group.id} onClick={() => jumpTo("therapy-plan")}><span className="therapy-action-number">{index + 1}</span><div><b>{group.title.replace(/^Priorität \d+ · /, "")}</b><small>{group.items[0]}</small></div><span className={`therapy-action-priority ${index < 3 ? "high" : "normal"}`}>{index < 3 ? "Priorität 1" : "Priorität 2"}</span><ChevronRight size={15} /></button>)}
+        </section>
+        <aside className="therapy-decision-preview">
+          <div className="therapy-plan-subhead"><div><span className="eyebrow">Direkter Zugriff</span><h3>Entscheidungsgrundlage</h3></div><Database size={18} /></div>
+          <DecisionPreviewRow label="Anthropometrie" status={recommendation.weightBasis > 0 ? "bestätigt" : "offen"} tone={recommendation.weightBasis > 0 ? "ok" : "open"} />
+          <DecisionPreviewRow label="Nahrungsaufnahme" status={patient.assessment.intakePercent !== "" ? "bestätigt" : "offen"} tone={patient.assessment.intakePercent !== "" ? "ok" : "open"} />
+          <DecisionPreviewRow label="Refeeding-Risiko" status={recommendation.refeedingRisk ? "relevant" : "kein Hinweis"} tone={recommendation.refeedingRisk ? "warning" : "ok"} />
+          <DecisionPreviewRow label="Dysphagie / Schlucken" status={recommendation.oralSafe ? "bestätigt" : "mit Vorbehalt"} tone={recommendation.oralSafe ? "ok" : "warning"} />
+          <DecisionPreviewRow label="Datenqualität" status={`${recommendation.decisionCompleteness} %`} tone={recommendation.decisionCompleteness >= 80 ? "ok" : "warning"} />
+          <button className="decision-preview-button" onClick={() => jumpTo("therapy-basis")}>Entscheidungsgrundlage öffnen <ChevronRight size={15} /></button>
+        </aside>
+      </div>
+
+      <div className="therapy-plan-export-bar">
+        <div><span className="eyebrow">Therapieplan exportieren</span><small>Professioneller Plan inklusive Zielwerten, Maßnahmen, Monitoring, Herleitung und Quellen.</small></div>
+        <div className="therapy-export-actions">
+          <button className="primary-button" onClick={() => { if (!printTherapyPlan(patient, recommendation)) notify?.("Pop-up wurde blockiert. Bitte Pop-ups für den PDF-Export erlauben."); }}><Download size={16} /> PDF / Drucken</button>
+          <button className="secondary-button" onClick={() => { downloadTextFile(`therapieplan-${therapyPlanSlug(patient)}.html`, therapyPlanHtml(patient, recommendation), "text/html;charset=utf-8"); notify?.("Therapieplan als HTML exportiert"); }}><FileText size={16} /> Therapieplan-Datei</button>
+          <button className="secondary-button" onClick={async () => { try { await navigator.clipboard.writeText(therapyPlanText(patient, recommendation)); notify?.("Clinical Note in die Zwischenablage kopiert"); } catch { downloadTextFile(`clinical-note-${therapyPlanSlug(patient)}.txt`, therapyPlanText(patient, recommendation)); notify?.("Clinical Note als Textdatei exportiert"); } }}><ExternalLink size={16} /> Clinical Note</button>
+        </div>
+      </div>
     </section>
+
+    <nav className="therapy-section-nav" aria-label="Bereiche des Therapieplans"><button onClick={() => jumpTo("therapy-plan")}><Utensils size={15} /> Therapieplan</button><button onClick={() => jumpTo("therapy-basis")}><Database size={15} /> Datenbasis</button><button onClick={() => jumpTo("therapy-safety")}><ShieldCheck size={15} /> Sicherheit</button><button onClick={() => jumpTo("therapy-reasoning")}><GitBranch size={15} /> Herleitung</button><button onClick={() => jumpTo("therapy-route")}><Hospital size={15} /> Route & PN</button><button onClick={() => jumpTo("therapy-calculations")}><Calculator size={15} /> Rechenweg</button><button onClick={() => jumpTo("therapy-sources")}><BookOpen size={15} /> Quellen</button></nav>
 
     <section className="professional-briefing panel"><div><span className="eyebrow">60-Sekunden-Fallbriefing</span><h3>Was die Ernährungsfachkraft im Team souverän vertreten kann</h3></div><div className="briefing-grid"><BriefingFact label="Zentraler Ernährungsweg" value={recommendation.routeDecision.label} note={recommendation.routeDecision.rationale} /><BriefingFact label="Wichtigste Sicherheitsfrage" value={recommendation.criticalGaps[0]?.title || "keine Blockade"} note={recommendation.criticalGaps[0]?.detail || "Vorbehalte bleiben im Sicherheitsbereich sichtbar."} /><BriefingFact label="PN-Entscheidung" value={recommendation.pn.label} note={`${recommendation.pn.prerequisites.length - recommendation.pn.openPrerequisites.length}/${recommendation.pn.prerequisites.length} Voraussetzungen erfüllt`} /><BriefingFact label="Patientenziel" value={patient.assessment.patientGoal || "noch offen"} note={patient.assessment.preferences || "Präferenzen ergänzen"} /></div></section>
 
     <section className="decision-trace-overview" aria-label="Zusammenfassung des Entscheidungspfads">{recommendation.decisionTrace.map((step) => <button key={step.id} className={`decision-trace-step trace-${step.tone}`} onClick={() => jumpTo(step.target)}><span>{step.label}</span><b>{step.value}</b><small>{step.detail}</small><em>Details öffnen <ChevronRight size={13} /></em></button>)}</section>
 
-    <nav className="therapy-section-nav" aria-label="Bereiche des Therapie-Copiloten"><button onClick={() => jumpTo("therapy-basis")}><Database size={15} /> Datenbasis</button><button onClick={() => jumpTo("therapy-safety")}><ShieldCheck size={15} /> Sicherheit</button><button onClick={() => jumpTo("therapy-reasoning")}><GitBranch size={15} /> Herleitung</button><button onClick={() => jumpTo("therapy-route")}><Hospital size={15} /> Route & PN</button><button onClick={() => jumpTo("therapy-calculations")}><Calculator size={15} /> Rechenweg</button><button onClick={() => jumpTo("therapy-plan")}><Utensils size={15} /> Plan</button><button onClick={() => jumpTo("therapy-sources")}><BookOpen size={15} /> Quellen</button></nav>
+    
 
     <section className="panel decision-basis-panel anchor-section" id="therapy-basis"><div className="panel-heading"><div><span className="eyebrow">Direkter Zugriff</span><h3>Welche Patientendaten werden verwendet?</h3><p>Wert, Herkunft, Status und konkrete Verwendung sind sichtbar. Offene Daten bleiben offen.</p></div>{patient.assessment.amputation?.present && <label className="weight-confirmation"><input type="checkbox" checked={Boolean(t.weightBasisConfirmed)} onChange={(event) => confirmWeightBasis(event.target.checked)} /><span><b>Segmentkorrigierte Gewichtsbasis bestätigen</b><small>vor kg-bezogenen Zielwerten erforderlich</small></span></label>}</div><div className="evidence-grid">{recommendation.evidence.map((item) => <EvidenceCard key={`${item.domain}-${item.label}`} item={item} />)}</div></section>
 
@@ -1884,6 +2044,15 @@ function TherapyWorkspace({ patient, updatePatient, notify, setTab }) {
   </div>;
 }
 
+
+
+function PlanGoal({ label, value, tone }) {
+  return <div className={`therapy-plan-goal ${tone}`}><span>{label}</span><b>{value}</b></div>;
+}
+
+function DecisionPreviewRow({ label, status, tone }) {
+  return <div className="decision-preview-row"><span>{label}</span><b className={tone}>{status}</b></div>;
+}
 
 function TimelineWorkspace({ patient, updatePatient }) {
   const [entry, setEntry] = useState({ type: "Verlauf", weight: "", intake: "", text: "" });
